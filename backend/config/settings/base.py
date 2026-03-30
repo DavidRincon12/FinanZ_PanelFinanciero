@@ -19,9 +19,37 @@ env = environ.Env()
 environ.Env.read_env(ROOT_DIR / ".env")
 
 # ---------------------------------------------------------------------------
+# Inicialización de Firebase Admin SDK para Autenticación
+# ---------------------------------------------------------------------------
+import firebase_admin
+from firebase_admin import credentials
+import logging
+logger = logging.getLogger(__name__)
+
+# En desarrollo leemos un archivo JSON local.
+# En producción (Render) lo podríamos pasar vía base64 o como variable de entorno
+FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default=str(ROOT_DIR / "firebase-credentials.json"))
+
+try:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred)
+        logger.info("Firebase Admin inicializado correctamente.")
+except Exception as e:
+    logger.warning("No se pudo inicializar Firebase Admin (probablemente falte el archivo JSON).")
+    logger.warning(f"Error: {e}")
+
+# ---------------------------------------------------------------------------
 # Seguridad
 # ---------------------------------------------------------------------------
 SECRET_KEY = env("SECRET_KEY")
+
+# Evitar bloqueos de popups de Google y Firebase (COOP)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
+# Permitir a Google GSI leer nuestro localhost (origin mismatch bypass)
+SECURE_REFERRER_POLICY = 'no-referrer-when-downgrade'
+
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 # ---------------------------------------------------------------------------
@@ -100,6 +128,13 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# ---------------------------------------------------------------------------
+# Configuración de Autenticación / Rutas
+# ---------------------------------------------------------------------------
+LOGIN_URL = "users:login"
+LOGIN_REDIRECT_URL = "users:dashboard"
+LOGOUT_REDIRECT_URL = "users:login"
 
 # ---------------------------------------------------------------------------
 # Internacionalización

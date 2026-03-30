@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Iniciar Sesión | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 text-center finanz-animate">
+            <h1 class="fw-bold mb-2">Bienvenido a FinanZ</h1>
+            <p class="text-muted mb-4">Control inteligente de tus finanzas. Sin contraseñas.</p>
+            
+            <div class="card card-finanz border-0 shadow-sm">
+                <div class="card-body p-5">
+                    
+                    <div class="d-flex justify-content-center w-100">
+                        <!-- Contenedor Oficial de Google Identity Services -->
+                        <div id="btnGoogleContainer"></div>
+                    </div>
+                    
+                    <div id="loginSpinner" class="spinner-border text-success mt-4 d-none" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-muted mt-5 small">
+                Al iniciar sesión aceptas nuestra política de higiene de datos y protección personal (Habeas Data).
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client"></script>
+
+<!-- Firebase JS SDK (App, Auth) -->
+<script type="module">
+  // Importar desde CDN oficial de Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getAuth, signInWithCredential, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+  // REEMPLAZAR con los valores dados por Firebase Console al crear el proyecto
+  const firebaseConfig = {
+    apiKey: "AIzaSyCARr0UE4I-SxbIMefgrAFW_RCuAk6cunY",
+    authDomain: "finanz-app-cc1a1.firebaseapp.com",
+    projectId: "finanz-app-cc1a1",
+    storageBucket: "finanz-app-cc1a1.firebasestorage.app",
+    messagingSenderId: "149569949748",
+    appId: "1:149569949748:web:6a234851807db2725dba61",
+    measurementId: "G-JXQ44E100X"
+  };
+
+  // Inicializar Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const spinner = document.getElementById('loginSpinner');
+  
+  // Función global para que el SDK de Google la pueda llamar al autenticar
+  window.handleCredentialResponse = async (response) => {
+      try {
+          spinner.classList.remove('d-none');
+          
+          const googleIdToken = response.credential;
+          const credential = GoogleAuthProvider.credential(googleIdToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          const firebaseToken = await userCredential.user.getIdToken();
+          
+          const djangoResponse = await fetch('/api/firebase-login/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken: firebaseToken })
+          });
+          
+          const data = await djangoResponse.json();
+          if (djangoResponse.ok) {
+              window.location.href = "{% url 'users:dashboard' %}";
+          } else {
+              alert("Error de Django: " + (data.error || "Desconocido"));
+              spinner.classList.add('d-none');
+              await auth.signOut();
+          }
+      } catch (error) {
+          console.error("Autenticación robusta fallida:", error);
+          alert("Hubo un fallo intercambiando credenciales: " + error.message);
+          spinner.classList.add('d-none');
+      }
+  };
+
+  // 6. Finalmente, indicamos a Google que Pinte el botón
+  window.onload = function() {
+      if (window.google) {
+          google.accounts.id.initialize({
+              client_id: "149569949748-r6nhbfgb94odnl49p2rcu9pa3h0j8a67.apps.googleusercontent.com",
+              callback: window.handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+              document.getElementById("btnGoogleContainer"),
+              { theme: "outline", size: "large", type: "standard", shape: "rectangular", text: "continue_with", logo_alignment: "center", width: "300" }
+          );
+      }
+  };
+</script>
+{% endblock %}

@@ -14,3 +14,6 @@ psycopg2-binary>=2.9
 
 # Procesamiento de imágenes (avatares de usuario)
 Pillow>=10.0
+
+# Autenticación de Firebase (Backend SDK)
+firebase-admin>=6.5.0

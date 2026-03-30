@@ -4,6 +4,7 @@
 
 # Variables de entorno (NUNCA subir secretos)
 .env
+firebase-credentials.json
 
 # Entorno virtual
 .venv/
