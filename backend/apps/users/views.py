@@ -16,11 +16,24 @@ from services.auth_service import verify_firebase_token, get_or_create_user_from
 logger = logging.getLogger(__name__)
 
 
+from django.conf import settings
+
 def login_view(request):
     """Vista visual de inicio de sesión."""
     if request.user.is_authenticated:
         return redirect("users:dashboard")
-    return render(request, "users/login.html")
+    
+    context = {
+        "FIREBASE_API_KEY": settings.FIREBASE_API_KEY,
+        "FIREBASE_AUTH_DOMAIN": settings.FIREBASE_AUTH_DOMAIN,
+        "FIREBASE_PROJECT_ID": settings.FIREBASE_PROJECT_ID,
+        "FIREBASE_STORAGE_BUCKET": settings.FIREBASE_STORAGE_BUCKET,
+        "FIREBASE_MESSAGING_SENDER_ID": settings.FIREBASE_MESSAGING_SENDER_ID,
+        "FIREBASE_APP_ID": settings.FIREBASE_APP_ID,
+        "FIREBASE_MEASUREMENT_ID": settings.FIREBASE_MEASUREMENT_ID,
+        "GOOGLE_CLIENT_ID": settings.GOOGLE_CLIENT_ID,
+    }
+    return render(request, "users/login.html", context)
 
 @csrf_exempt
 def firebase_login(request):

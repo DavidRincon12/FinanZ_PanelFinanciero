@@ -40,6 +40,18 @@ except Exception as e:
     logger.warning(f"Error: {e}")
 
 # ---------------------------------------------------------------------------
+# Firebase Configuración Pública (Client-Side)
+# ---------------------------------------------------------------------------
+FIREBASE_API_KEY = env("FIREBASE_API_KEY", default="")
+FIREBASE_AUTH_DOMAIN = env("FIREBASE_AUTH_DOMAIN", default="")
+FIREBASE_PROJECT_ID = env("FIREBASE_PROJECT_ID", default="")
+FIREBASE_STORAGE_BUCKET = env("FIREBASE_STORAGE_BUCKET", default="")
+FIREBASE_MESSAGING_SENDER_ID = env("FIREBASE_MESSAGING_SENDER_ID", default="")
+FIREBASE_APP_ID = env("FIREBASE_APP_ID", default="")
+FIREBASE_MEASUREMENT_ID = env("FIREBASE_MEASUREMENT_ID", default="")
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+
+# ---------------------------------------------------------------------------
 # Seguridad
 # ---------------------------------------------------------------------------
 SECRET_KEY = env("SECRET_KEY")

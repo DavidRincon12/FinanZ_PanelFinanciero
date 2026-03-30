@@ -28,11 +28,8 @@ Es crucial usar un entorno virtual para no instalar librerías globalmente en tu
 python -m venv .venv
 ```
 **Actívalo**:
-- **En Windows (PowerShell/VS Code):** `.\.venv\Scripts\Activate.ps1`
-- **En Windows (CMD Clásico):** `.\.venv\Scripts\activate.bat`
-- **En Mac/Linux:** `source .venv/bin/activate`
+- **En Windows** `.venv\Scripts\activate`
 
-*(Nota: Sabrás que está activado cuando veas `(.venv)` al inicio de tu línea de comandos).*
 
 ### 3. Posicionarse e Instalar Dependencias
 Entra la carpeta del backend e instala todas las librerías oficiales del proyecto:

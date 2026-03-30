@@ -39,18 +39,11 @@ python -m venv .venv
 # 3. Instalar dependencias de desarrollo
 pip install -r backend/requirements/local.txt
 
-# 4. Configurar variables de entorno
-copy .env.example .env
-# Edita .env con tus valores
-
-# 5. Aplicar migraciones
-cd backend
+# 4. Sincronizar Base de datois NeonDB
+python manage.py makemigrations
 python manage.py migrate
 
-# 6. Crear superusuario
-python manage.py createsuperuser
-
-# 7. Correr servidor de desarrollo
+# 5. Correr servidor de desarrollo
 python manage.py runserver
 ```
 
