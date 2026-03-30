@@ -1,0 +1,16 @@
+# ============================================================
+# FinanZ – Requirements Base
+# Dependencias comunes a todos los entornos.
+# ============================================================
+
+# Framework principal
+Django>=5.1,<6.0
+
+# Variables de entorno y gestión de secretos
+django-environ>=0.11
+
+# Adaptador PostgreSQL (requiere libpq)
+psycopg2-binary>=2.9
+
+# Procesamiento de imágenes (avatares de usuario)
+Pillow>=10.0

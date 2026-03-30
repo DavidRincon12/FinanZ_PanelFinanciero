@@ -1,0 +1,50 @@
+# ============================================================
+# FinanZ – .gitignore
+# ============================================================
+
+# Variables de entorno (NUNCA subir secretos)
+.env
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# Django
+db.sqlite3
+*.log
+backend/staticfiles/
+backend/media/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+*.xml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documentos
+*.docx
+*.pdf
+
+# Build
+dist/
+build/
+*.egg-info/

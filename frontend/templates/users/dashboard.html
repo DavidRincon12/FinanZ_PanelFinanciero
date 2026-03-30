@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">📊 Mi Dashboard Financiero</h1>
+    <div class="row g-3">
+        <!-- Tarjeta Balance -->
+        <div class="col-md-4">
+            <div class="card card-finanz h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Balance Actual</h5>
+                    <p class="display-6 fw-bold text-success" id="balance-value">$0.00</p>
+                </div>
+            </div>
+        </div>
+        <!-- Gráfico de torta -->
+        <div class="col-md-4">
+            <div class="card card-finanz h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Gastos por Categoría</h5>
+                    <canvas id="expensesPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Gráfico de líneas -->
+        <div class="col-md-4">
+            <div class="card card-finanz h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Tendencia Mensual</h5>
+                    <canvas id="balanceLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% load static %}{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

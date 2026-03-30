@@ -1,0 +1,19 @@
+# ============================================================
+# FinanZ – Requirements Local (Desarrollo)
+# ============================================================
+-r base.txt
+
+# Herramienta de debugging para Django
+django-debug-toolbar>=4.0
+
+# Formateo automático de código
+black>=24.0
+isort>=5.0
+
+# Linter
+flake8>=7.0
+
+# Testing
+pytest-django>=4.0
+pytest-cov>=4.0
+factory-boy>=3.0  # Para crear fixtures en tests

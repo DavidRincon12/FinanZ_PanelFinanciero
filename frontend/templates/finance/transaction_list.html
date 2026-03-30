@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Transacciones{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">💸 Mis Transacciones</h1>
+    <!-- TODO (Fase 2): Implementar listado completo con filtros -->
+    <a href="{% url 'finance:transaction_create' %}" class="btn btn-finanz mb-3">
+        + Registrar transacción
+    </a>
+</div>
+{% endblock %}

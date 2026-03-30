@@ -1,0 +1,13 @@
+# ============================================================
+# FinanZ – Requirements Production (Render)
+# ============================================================
+-r base.txt
+
+# Servidor WSGI de producción
+gunicorn>=22.0
+
+# Servir archivos estáticos sin servidor web externo
+whitenoise>=6.0
+
+# Adaptador Neon PostgreSQL (recomendado con sslmode=require)
+# psycopg[binary]>=3.0  # Alternativa moderna si se migra a psycopg3

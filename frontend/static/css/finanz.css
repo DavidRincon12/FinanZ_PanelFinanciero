@@ -1,0 +1,110 @@
+/*
+ * FinanZ – Estilos Personalizados
+ * Complementa Bootstrap 5 con el design system de FinanZ.
+ * Paleta: Verde esmeralda (#10b981), Azul marino oscuro (#0f172a), Gris fondo (#f8fafc)
+ */
+
+/* ---- Variables de diseño ---- */
+:root {
+    --finanz-primary: #10b981;
+    --finanz-primary-dark: #059669;
+    --finanz-secondary: #0f172a;
+    --finanz-bg: #f8fafc;
+    --finanz-card-bg: #ffffff;
+    --finanz-danger: #ef4444;
+    --finanz-warning: #f59e0b;
+    --finanz-font: 'Inter', sans-serif;
+    --finanz-radius: 12px;
+    --finanz-shadow: 0 4px 24px rgba(16, 185, 129, 0.08);
+}
+
+/* ---- Layout ---- */
+body.finanz-app {
+    font-family: var(--finanz-font);
+    background-color: var(--finanz-bg);
+    color: var(--finanz-secondary);
+}
+
+.finanz-main {
+    min-height: calc(100vh - 120px);
+    padding: 1rem 0;
+}
+
+.finanz-footer {
+    border-top: 1px solid #e2e8f0;
+}
+
+/* ---- Navbar ---- */
+.navbar-finanz {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+}
+
+/* ---- Cards ---- */
+.card-finanz {
+    border: none;
+    border-radius: var(--finanz-radius);
+    box-shadow: var(--finanz-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-finanz:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+}
+
+/* ---- Badges de tipo ---- */
+.badge-income {
+    background-color: #d1fae5;
+    color: var(--finanz-primary-dark);
+    font-weight: 600;
+}
+
+.badge-expense {
+    background-color: #fee2e2;
+    color: var(--finanz-danger);
+    font-weight: 600;
+}
+
+/* ---- Botones ---- */
+.btn-finanz {
+    background: linear-gradient(135deg, var(--finanz-primary) 0%, var(--finanz-primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-finanz:hover {
+    color: white;
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+/* ---- Barras de progreso de metas ---- */
+.progress-finanz {
+    height: 10px;
+    border-radius: 999px;
+    background: #e2e8f0;
+}
+
+.progress-finanz .progress-bar {
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.progress-bar-low    { background: var(--finanz-primary); }
+.progress-bar-medium { background: var(--finanz-warning); }
+.progress-bar-high   { background: var(--finanz-danger); }
+
+/* ---- Animaciones de entrada ---- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.finanz-animate {
+    animation: fadeInUp 0.4s ease both;
+}
