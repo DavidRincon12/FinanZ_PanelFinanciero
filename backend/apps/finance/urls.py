@@ -13,6 +13,7 @@ urlpatterns = [
     path("transactions/<int:pk>/edit/", views.transaction_update, name="transaction_update"),
     path("transactions/<int:pk>/delete/", views.transaction_delete, name="transaction_delete"),
     path("categories/", views.category_list, name="category_list"),
+    path("categories/new/", views.category_create, name="category_create"),
     # Endpoint JSON para Chart.js
     path("api/balance/", views.balance_api, name="balance_api"),
     path("api/expenses-by-category/", views.expenses_by_category_api, name="expenses_by_category_api"),

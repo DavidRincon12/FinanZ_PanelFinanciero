@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{% if transaction %}Editar Transacción{% else %}Nueva Transacción{% endif %} | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h1 class="h3 mb-4">
+                {% if transaction %}Editar Transacción{% else %}Nueva Transacción{% endif %}
+            </h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Tipo de transacción -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tipo *</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="transaction_type" id="type_income"
+                                           value="income" {% if not transaction or transaction.transaction_type == 'income' %}checked{% endif %} required>
+                                    <label class="form-check-label text-success fw-semibold" for="type_income">
+                                        ↑ Ingreso
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="transaction_type" id="type_expense"
+                                           value="expense" {% if transaction and transaction.transaction_type == 'expense' %}checked{% endif %} required>
+                                    <label class="form-check-label text-danger fw-semibold" for="type_expense">
+                                        ↓ Egreso
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monto -->
+                        <div class="mb-3">
+                            <label for="amount" class="form-label fw-semibold">Monto *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="amount" name="amount"
+                                       step="0.01" min="0.01" placeholder="0.00"
+                                       value="{{ transaction.amount|default:'' }}" required>
+                            </div>
+                        </div>
+
+                        <!-- Categoría -->
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label fw-semibold">Categoría</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">— Sin categoría —</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.pk }}"
+                                        {% if transaction and transaction.category_id == cat.pk %}selected{% endif %}>
+                                        {{ cat.icon }} {{ cat.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                ¿No encuentras la que necesitas?
+                                <a href="{% url 'finance:category_create' %}" target="_blank">Crear categoría personalizada</a>
+                            </div>
+                        </div>
+
+                        <!-- Fecha -->
+                        <div class="mb-3">
+                            <label for="date" class="form-label fw-semibold">Fecha *</label>
+                            <input type="date" class="form-control" id="date" name="date"
+                                   value="{{ transaction.date|default:'' }}" required>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-semibold">Descripción / Nota</label>
+                            <input type="text" class="form-control" id="description" name="description"
+                                   maxlength="255" placeholder="Ej: Mercado semanal"
+                                   value="{{ transaction.description|default:'' }}">
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill">
+                                {% if transaction %}Guardar Cambios{% else %}Registrar{% endif %}
+                            </button>
+                            <a href="{% url 'finance:transaction_list' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Pre-rellenar la fecha de hoy si es una transacción nueva
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+</script>
+{% endblock %}

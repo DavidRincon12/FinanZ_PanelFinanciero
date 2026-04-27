@@ -10,7 +10,7 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from django.db import transaction as db_transaction
+from django.db import models, transaction as db_transaction
 from django.utils import timezone
 
 from apps.finance.models import Transaction, Category
@@ -39,7 +39,14 @@ def transaction_create(user: "CustomUser", data: dict) -> Transaction:
     transaction_type = _validate_transaction_type(data.get("transaction_type"))
     category_id = data.get("category_id")
     description = data.get("description", "").strip()
-    date = data.get("date") or timezone.now().date()
+
+    # Convertir la fecha del formulario (str "YYYY-MM-DD") a objeto date real
+    raw_date = data.get("date")
+    if raw_date:
+        from django.utils.dateparse import parse_date
+        date = parse_date(str(raw_date)) or timezone.now().date()
+    else:
+        date = timezone.now().date()
 
     category = None
     if category_id:
@@ -117,3 +124,44 @@ def _validate_transaction_type(transaction_type: str) -> str:
             f"Los valores permitidos son: {valid_types}"
         )
     return transaction_type
+
+
+def category_create(user: "CustomUser", data: dict) -> Category:
+    """
+    Crea una categoría personalizada para el usuario.
+
+    Args:
+        user: El propietario de la nueva categoría.
+        data: Diccionario con campos (name, icon).
+
+    Returns:
+        La instancia de Category creada.
+
+    Raises:
+        ValueError: Si el nombre está vacío o ya existe una categoría con ese
+                    nombre para este usuario.
+    """
+    name = data.get("name", "").strip()
+    icon = data.get("icon", "📦").strip() or "📦"
+
+    if not name:
+        raise ValueError("El nombre de la categoría no puede estar vacío.")
+
+    # Verificar que no exista ya (sistema o personalizada) con ese nombre para el usuario
+    already_exists = Category.objects.filter(
+        name__iexact=name,
+    ).filter(
+        models.Q(category_type=Category.SYSTEM) | models.Q(owner=user)
+    ).exists()
+
+    if already_exists:
+        raise ValueError(f"Ya existe una categoría llamada '{name}'.")
+
+    category = Category.objects.create(
+        name=name,
+        icon=icon,
+        category_type=Category.CUSTOM,
+        owner=user,
+    )
+    logger.info("Category created: id=%s user=%s name=%s", category.pk, user.pk, name)
+    return category

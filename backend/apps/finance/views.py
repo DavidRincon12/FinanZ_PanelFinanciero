@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 
-from .models import Transaction
+from .models import Transaction, Category
 from services import finance_service, finance_selectors
 
 
@@ -26,6 +26,7 @@ def transaction_list(request):
 @login_required
 def transaction_create(request):
     """Registro rápido de una nueva transacción (< 10 segundos desde móvil)."""
+    categories = finance_selectors.get_user_categories(user=request.user)
     if request.method == "POST":
         try:
             finance_service.transaction_create(user=request.user, data=request.POST)
@@ -33,13 +34,17 @@ def transaction_create(request):
             return redirect("finance:transaction_list")
         except ValueError as e:
             messages.error(request, str(e))
-    return render(request, "finance/transaction_form.html")
+    return render(request, "finance/transaction_form.html", {
+        "categories": categories,
+        "transaction_types": Transaction.TYPE_CHOICES,
+    })
 
 
 @login_required
 def transaction_update(request, pk: int):
     """Edición de una transacción existente."""
     transaction = get_object_or_404(Transaction, pk=pk, user=request.user)
+    categories = finance_selectors.get_user_categories(user=request.user)
     if request.method == "POST":
         try:
             finance_service.transaction_update(instance=transaction, data=request.POST)
@@ -47,7 +52,11 @@ def transaction_update(request, pk: int):
             return redirect("finance:transaction_list")
         except ValueError as e:
             messages.error(request, str(e))
-    return render(request, "finance/transaction_form.html", {"transaction": transaction})
+    return render(request, "finance/transaction_form.html", {
+        "transaction": transaction,
+        "categories": categories,
+        "transaction_types": Transaction.TYPE_CHOICES,
+    })
 
 
 @login_required
@@ -66,6 +75,19 @@ def category_list(request):
     """Listado y gestión de categorías del usuario."""
     categories = finance_selectors.get_user_categories(user=request.user)
     return render(request, "finance/category_list.html", {"categories": categories})
+
+
+@login_required
+def category_create(request):
+    """Crea una categoría personalizada para el usuario autenticado."""
+    if request.method == "POST":
+        try:
+            finance_service.category_create(user=request.user, data=request.POST)
+            messages.success(request, "Categoría creada correctamente.")
+            return redirect("finance:category_list")
+        except ValueError as e:
+            messages.error(request, str(e))
+    return render(request, "finance/category_form.html")
 
 
 # -------------------------------------------------------------------

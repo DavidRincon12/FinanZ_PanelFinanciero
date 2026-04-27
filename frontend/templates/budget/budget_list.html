@@ -1,8 +1,69 @@
 {% extends "base.html" %}
-{% block title %}Presupuestos{% endblock %}
+{% block title %}Mis Presupuestos | FinanZ{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-    <h1 class="mb-4">📊 Mis Presupuestos</h1>
-    <!-- TODO (Fase 3): Implementar gestión de presupuestos -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Presupuestos</h1>
+        <a href="{% url 'budget:budget_create' %}" class="btn btn-success">+ Nuevo Presupuesto</a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if budgets %}
+        <div class="row g-3">
+            {% for b in budgets %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">
+                                {{ b.category.icon }} {{ b.category.name }}
+                            </h5>
+                            <span class="badge bg-secondary">{{ b.month }}/{{ b.year }}</span>
+                        </div>
+                        <p class="text-muted small mb-1">Límite: <strong>${{ b.limit_amount|floatformat:0 }}</strong></p>
+
+                        {% if b.month == current_month and b.year == current_year %}
+                            <p class="text-muted small mb-2">Mes actual</p>
+                        {% endif %}
+
+                        {% if b.alerted_100 %}
+                            <span class="badge bg-danger mb-2">Límite superado</span>
+                        {% elif b.alerted_80 %}
+                            <span class="badge bg-warning text-dark mb-2">Advertencia 80%</span>
+                        {% else %}
+                            <span class="badge bg-success mb-2">En control</span>
+                        {% endif %}
+
+                        <div class="mt-auto pt-2 d-flex gap-2">
+                            <a href="{% url 'budget:budget_update' b.pk %}" class="btn btn-sm btn-outline-secondary flex-fill">
+                                Editar
+                            </a>
+                            <a href="{% url 'budget:budget_delete' b.pk %}" class="btn btn-sm btn-outline-danger flex-fill">
+                                Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5 text-muted">
+                <p class="mb-2">No tienes presupuestos definidos aún.</p>
+                <p class="small mb-3">Define límites mensuales por categoría para que FinanZ te avise cuando estés cerca de superarlos.</p>
+                <a href="{% url 'budget:budget_create' %}" class="btn btn-success">Crear mi primer presupuesto</a>
+            </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

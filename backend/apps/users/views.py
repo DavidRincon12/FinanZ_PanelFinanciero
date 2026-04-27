@@ -80,8 +80,27 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    """Dashboard principal – punto de entrada autenticado."""
-    return render(request, "users/dashboard.html", {"user": request.user})
+    """Dashboard principal con datos financieros reales."""
+    from services.finance_selectors import (
+        calculate_balance,
+        get_user_transactions,
+        get_expenses_by_category,
+        get_monthly_balance_series,
+    )
+    from apps.budget.models import Notification
+
+    balance = calculate_balance(user=request.user)
+    recent_transactions = get_user_transactions(user=request.user)[:5]
+    unread_notifications = Notification.objects.filter(
+        user=request.user, is_read=False
+    ).count()
+
+    return render(request, "users/dashboard.html", {
+        "user": request.user,
+        "balance": balance,
+        "recent_transactions": recent_transactions,
+        "unread_notifications": unread_notifications,
+    })
 
 
 @login_required

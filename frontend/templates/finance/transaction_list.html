@@ -1,11 +1,88 @@
 {% extends "base.html" %}
-{% block title %}Transacciones{% endblock %}
+{% block title %}Mis Transacciones | FinanZ{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-    <h1 class="mb-4">💸 Mis Transacciones</h1>
-    <!-- TODO (Fase 2): Implementar listado completo con filtros -->
-    <a href="{% url 'finance:transaction_create' %}" class="btn btn-finanz mb-3">
-        + Registrar transacción
-    </a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Mis Transacciones</h1>
+        <a href="{% url 'finance:transaction_create' %}" class="btn btn-success">
+            + Nueva Transacción
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Balance General -->
+    <div class="card mb-4">
+        <div class="card-body text-center">
+            <h5 class="card-title text-muted">Balance General</h5>
+            <p class="display-6 fw-bold {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ${{ balance|floatformat:2 }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Historial -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Categoría</th>
+                                <th>Descripción</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transactions %}
+                            <tr>
+                                <td>{{ t.date }}</td>
+                                <td>
+                                    {% if t.transaction_type == 'income' %}
+                                        <span class="badge bg-success">Ingreso</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Egreso</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if t.category %}
+                                        {{ t.category.icon }} {{ t.category.name }}
+                                    {% else %}
+                                        <span class="text-muted">Sin categoría</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ t.description|default:"—" }}</td>
+                                <td class="text-end fw-semibold {% if t.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if t.transaction_type == 'income' %}+{% else %}-{% endif %}${{ t.amount|floatformat:2 }}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'finance:transaction_update' t.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                    <a href="{% url 'finance:transaction_delete' t.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-0">Aún no tienes transacciones registradas.</p>
+                    <a href="{% url 'finance:transaction_create' %}" class="btn btn-success mt-3">Registrar mi primer movimiento</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}

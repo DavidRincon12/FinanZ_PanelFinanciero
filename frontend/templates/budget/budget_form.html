@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{% if budget %}Editar Presupuesto{% else %}Nuevo Presupuesto{% endif %} | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h1 class="h3 mb-4">{% if budget %}Editar Límite{% else %}Nuevo Presupuesto{% endif %}</h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        {% if not budget %}
+                        <!-- Categoría (solo en creación) -->
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label fw-semibold">Categoría *</label>
+                            <select class="form-select" id="category_id" name="category_id" required>
+                                <option value="">— Selecciona una categoría —</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.pk }}">{{ cat.icon }} {{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Mes -->
+                        <div class="mb-3">
+                            <label for="month" class="form-label fw-semibold">Mes *</label>
+                            <select class="form-select" id="month" name="month" required>
+                                {% for m in months %}
+                                    <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>
+                                        {{ m }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Año -->
+                        <div class="mb-3">
+                            <label for="year" class="form-label fw-semibold">Año *</label>
+                            <select class="form-select" id="year" name="year" required>
+                                {% for y in years %}
+                                    <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>
+                                        {{ y }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <!-- En edición solo mostramos información -->
+                        <div class="alert alert-info small">
+                            Editando presupuesto de <strong>{{ budget.category.icon }} {{ budget.category.name }}</strong>
+                            para <strong>{{ budget.month }}/{{ budget.year }}</strong>.
+                        </div>
+                        {% endif %}
+
+                        <!-- Límite de Monto -->
+                        <div class="mb-4">
+                            <label for="limit_amount" class="form-label fw-semibold">Límite mensual *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="limit_amount" name="limit_amount"
+                                       step="1" min="1" placeholder="500000"
+                                       value="{{ budget.limit_amount|default:'' }}" required>
+                            </div>
+                            <div class="form-text">FinanZ te avisará al llegar al 80% y al 100% de este límite.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill">
+                                {% if budget %}Actualizar límite{% else %}Crear presupuesto{% endif %}
+                            </button>
+                            <a href="{% url 'budget:budget_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Eliminar Presupuesto | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white fw-semibold">
+                    Confirmar eliminación
+                </div>
+                <div class="card-body">
+                    <p class="mb-1">¿Eliminar este presupuesto?</p>
+                    <p class="text-muted small mb-3">También se eliminarán todas las notificaciones de alerta asociadas a esta categoría.</p>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted">Categoría</span>
+                            <strong>{{ budget.category.icon }} {{ budget.category.name }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted">Período</span>
+                            <strong>{{ budget.month }}/{{ budget.year }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted">Límite</span>
+                            <strong>${{ budget.limit_amount|floatformat:0 }}</strong>
+                        </li>
+                    </ul>
+                    <form method="POST" class="d-flex gap-2">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger flex-fill">Sí, eliminar</button>
+                        <a href="{% url 'budget:budget_list' %}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

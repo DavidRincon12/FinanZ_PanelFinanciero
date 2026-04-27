@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{% if goal %}Editar Meta{% else %}Nueva Meta{% endif %} | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h1 class="h3 mb-4">{% if goal %}Editar Meta{% else %}Nueva Meta de Ahorro{% endif %}</h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Vista previa -->
+                        <div class="text-center mb-4">
+                            <span id="preview-icon" class="display-4">{{ goal.icon|default:"🎯" }}</span>
+                            <p id="preview-name" class="fw-semibold mt-1">{{ goal.name|default:"Mi meta" }}</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="icon" class="form-label fw-semibold">Ícono</label>
+                            <input type="text" class="form-control" id="icon" name="icon"
+                                   maxlength="10" value="{{ goal.icon|default:'🎯' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label fw-semibold">Nombre de la meta *</label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   maxlength="150" placeholder="Ej: Viaje a Europa"
+                                   value="{{ goal.name|default:'' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="target_amount" class="form-label fw-semibold">Monto objetivo *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="target_amount" name="target_amount"
+                                       step="0.01" min="1" placeholder="3000000"
+                                       value="{{ goal.target_amount|default:'' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="deadline" class="form-label fw-semibold">Fecha límite <span class="text-muted small">(opcional)</span></label>
+                            <input type="date" class="form-control" id="deadline" name="deadline"
+                                   value="{{ goal.deadline|default:'' }}">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-semibold">Descripción <span class="text-muted small">(opcional)</span></label>
+                            <textarea class="form-control" id="description" name="description"
+                                      rows="2" placeholder="Ej: Fondo para el viaje de diciembre">{{ goal.description|default:'' }}</textarea>
+                        </div>
+
+                        {% if goal %}
+                        <div class="mb-4">
+                            <label for="status" class="form-label fw-semibold">Estado</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="active" {% if goal.status == 'active' %}selected{% endif %}>Activa</option>
+                                <option value="paused" {% if goal.status == 'paused' %}selected{% endif %}>Pausada</option>
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill">
+                                {% if goal %}Guardar cambios{% else %}Crear meta{% endif %}
+                            </button>
+                            <a href="{% url 'goals:goal_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('icon').addEventListener('input', function() {
+        document.getElementById('preview-icon').textContent = this.value || '🎯';
+    });
+    document.getElementById('name').addEventListener('input', function() {
+        document.getElementById('preview-name').textContent = this.value || 'Mi meta';
+    });
+</script>
+{% endblock %}

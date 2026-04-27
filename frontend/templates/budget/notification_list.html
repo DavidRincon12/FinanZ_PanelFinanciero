@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Notificaciones | FinanZ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            Notificaciones
+            {% if unread_count > 0 %}
+                <span class="badge bg-danger">{{ unread_count }}</span>
+            {% endif %}
+        </h1>
+        {% if notifications %}
+        <form method="POST" action="{% url 'budget:notification_clear_all' %}"
+              onsubmit="return confirm('¿Eliminar todas las notificaciones?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                Limpiar todas
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if notifications %}
+        <div class="d-flex flex-column gap-3">
+            {% for n in notifications %}
+            <div class="card {% if not n.is_read %}border-warning{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-semibold mb-1">
+                                {% if n.level == 'critical' %}
+                                    <span class="text-danger">⛔ {{ n.title }}</span>
+                                {% elif n.level == 'warning' %}
+                                    <span class="text-warning">⚠️ {{ n.title }}</span>
+                                {% else %}
+                                    <span class="text-info">ℹ️ {{ n.title }}</span>
+                                {% endif %}
+                            </h6>
+                            <p class="mb-1 text-muted small">{{ n.message }}</p>
+                            <small class="text-muted">{{ n.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <div class="d-flex gap-2 ms-3">
+                            {% if not n.is_read %}
+                            <form method="POST" action="{% url 'budget:mark_notification_read' n.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    Leída
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" action="{% url 'budget:notification_delete' n.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Eliminar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5 text-muted">
+                <p class="mb-0">No tienes notificaciones.</p>
+                <small>Las alertas de presupuesto aparecerán aquí automáticamente.</small>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

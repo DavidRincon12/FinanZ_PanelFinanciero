@@ -1,8 +1,101 @@
 {% extends "base.html" %}
-{% block title %}Metas de Ahorro{% endblock %}
+{% block title %}Mis Metas | FinanZ{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-    <h1 class="mb-4">🎯 Mis Metas de Ahorro</h1>
-    <!-- TODO (Fase 3): Implementar seguimiento de metas -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Metas de Ahorro</h1>
+        <a href="{% url 'goals:goal_create' %}" class="btn btn-success">+ Nueva Meta</a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if active_goals %}
+    <h5 class="text-muted mb-3">Activas</h5>
+    <div class="row g-3 mb-4">
+        {% for g in active_goals %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'goals:goal_detail' g.pk %}" class="text-decoration-none">
+                <div class="card h-100 card-hover">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ g.icon }} {{ g.name }}</h5>
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>${{ g.current_amount|floatformat:0 }}</span>
+                            <span>${{ g.target_amount|floatformat:0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: {{ g.progress_percent|floatformat:0 }}%"
+                                 aria-valuenow="{{ g.progress_percent|floatformat:0 }}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <p class="small text-muted mt-1 mb-0">{{ g.progress_percent|floatformat:1 }}% completado</p>
+                        {% if g.deadline %}
+                            <p class="small text-muted mb-0">Fecha límite: {{ g.deadline }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if completed_goals %}
+    <h5 class="text-muted mb-3">Completadas 🎉</h5>
+    <div class="row g-3 mb-4">
+        {% for g in completed_goals %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-success">
+                <div class="card-body">
+                    <h5 class="card-title">{{ g.icon }} {{ g.name }}</h5>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                    <p class="small text-success mt-1 mb-0">Meta alcanzada — ${{ g.target_amount|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if paused_goals %}
+    <h5 class="text-muted mb-3">Pausadas</h5>
+    <div class="row g-3 mb-4">
+        {% for g in paused_goals %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">{{ g.icon }} {{ g.name }}</h5>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-secondary"
+                             style="width: {{ g.progress_percent|floatformat:0 }}%"></div>
+                    </div>
+                    <p class="small text-muted mt-1 mb-0">{{ g.progress_percent|floatformat:1 }}% completado</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not active_goals and not completed_goals and not paused_goals %}
+    <div class="card">
+        <div class="card-body text-center py-5 text-muted">
+            <p class="mb-2">No tienes metas de ahorro.</p>
+            <p class="small mb-3">Define un proyecto de ahorro, ponle fecha límite y ve tu progreso crecer.</p>
+            <a href="{% url 'goals:goal_create' %}" class="btn btn-success">Crear mi primera meta</a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

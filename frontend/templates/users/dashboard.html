@@ -1,33 +1,135 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% load static %}
+{% block title %}Dashboard | FinanZ{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
-    <h1 class="mb-4">📊 Mi Dashboard Financiero</h1>
+
+    <!-- Fila superior: KPIs -->
+    <div class="row g-3 mb-4">
+
+        <!-- Balance General -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <h6 class="card-title text-muted">Balance General</h6>
+                    <p class="display-6 fw-bold mb-0 {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ balance|floatformat:0 }}
+                    </p>
+                    <a href="{% url 'finance:transaction_list' %}" class="btn btn-sm btn-outline-secondary mt-3">
+                        Ver historial
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acceso rápido: registrar movimiento -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <h6 class="card-title text-muted">Registro rápido</h6>
+                    <p class="text-muted small mb-3">Agrega un ingreso o gasto en segundos.</p>
+                    <a href="{% url 'finance:transaction_create' %}" class="btn btn-success w-100">
+                        + Nueva Transacción
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notificaciones -->
+        <div class="col-md-4">
+            <div class="card h-100 {% if unread_notifications > 0 %}border-warning{% endif %}">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <h6 class="card-title text-muted">
+                        Alertas de Presupuesto
+                        {% if unread_notifications > 0 %}
+                            <span class="badge bg-danger">{{ unread_notifications }}</span>
+                        {% endif %}
+                    </h6>
+                    {% if unread_notifications > 0 %}
+                        <p class="text-warning small mb-3">Tienes {{ unread_notifications }} alerta(s) sin leer.</p>
+                    {% else %}
+                        <p class="text-muted small mb-3">Todo bajo control. Sin alertas nuevas.</p>
+                    {% endif %}
+                    <a href="{% url 'budget:notification_list' %}" class="btn btn-sm btn-outline-secondary w-100">
+                        Ver notificaciones
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fila: Gráficos -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-5">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Gastos por Categoría (mes actual)</h6>
+                    <canvas id="expensesPieChart" height="220"></canvas>
+                    <p id="pie-empty" class="text-muted text-center small mt-3 d-none">Sin gastos registrados este mes.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Evolución Mensual del Balance</h6>
+                    <canvas id="balanceLineChart" height="180"></canvas>
+                    <p id="line-empty" class="text-muted text-center small mt-3 d-none">Sin datos históricos suficientes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fila: Últimas transacciones -->
     <div class="row g-3">
-        <!-- Tarjeta Balance -->
-        <div class="col-md-4">
-            <div class="card card-finanz h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Balance Actual</h5>
-                    <p class="display-6 fw-bold text-success" id="balance-value">$0.00</p>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">Últimas Transacciones</span>
+                    <a href="{% url 'finance:transaction_list' %}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <tbody>
+                                {% for t in recent_transactions %}
+                                <tr>
+                                    <td class="text-muted small">{{ t.date }}</td>
+                                    <td>
+                                        {% if t.category %}{{ t.category.icon }} {{ t.category.name }}
+                                        {% else %}<span class="text-muted">Sin categoría</span>{% endif %}
+                                    </td>
+                                    <td class="text-muted small">{{ t.description|default:"—" }}</td>
+                                    <td class="text-end fw-semibold {% if t.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                        {% if t.transaction_type == 'income' %}+{% else %}-{% endif %}${{ t.amount|floatformat:0 }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <p class="mb-0 small">Aún no tienes movimientos.</p>
+                        <a href="{% url 'finance:transaction_create' %}" class="btn btn-success btn-sm mt-2">Registrar primer movimiento</a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        <!-- Gráfico de torta -->
+
+        <!-- Accesos directos -->
         <div class="col-md-4">
-            <div class="card card-finanz h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Gastos por Categoría</h5>
-                    <canvas id="expensesPieChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <!-- Gráfico de líneas -->
-        <div class="col-md-4">
-            <div class="card card-finanz h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Tendencia Mensual</h5>
-                    <canvas id="balanceLineChart"></canvas>
+            <div class="card">
+                <div class="card-header fw-semibold">Accesos Directos</div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'finance:transaction_create' %}" class="list-group-item list-group-item-action">💸 Nueva Transacción</a>
+                    <a href="{% url 'budget:budget_list' %}" class="list-group-item list-group-item-action">📋 Mis Presupuestos</a>
+                    <a href="{% url 'goals:goal_list' %}" class="list-group-item list-group-item-action">🎯 Mis Metas</a>
+                    <a href="{% url 'finance:category_list' %}" class="list-group-item list-group-item-action">🗂️ Categorías</a>
+                    <a href="{% url 'users:logout' %}" class="list-group-item list-group-item-action text-danger">🚪 Cerrar Sesión</a>
                 </div>
             </div>
         </div>
@@ -36,5 +138,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% load static %}{% static 'js/dashboard.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}
