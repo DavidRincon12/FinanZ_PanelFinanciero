@@ -32,7 +32,8 @@ def verify_firebase_token(id_token: str) -> dict:
         raise ValueError("firebase-admin no está importado o configurado correctamente.")
 
     try:
-        decoded_token = auth.verify_id_token(id_token)
+        # Se añaden 60 segundos de tolerancia (clock skew) por diferencias de reloj del sistema con los servidores de Google
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
         return decoded_token
     except Exception as exc:
         logger.error("Token de Firebase inválido o expirado: %s", exc)
