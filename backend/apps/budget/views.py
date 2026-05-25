@@ -7,6 +7,11 @@ from datetime import date
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import BudgetSerializer, NotificationSerializer
 
 from .models import Budget, Notification
 from services import budget_service
@@ -118,6 +123,31 @@ def notification_clear_all(request):
 @login_required
 def mark_notification_read(request, pk: int):
     notification = get_object_or_404(Notification, pk=pk, user=request.user)
+# -------------------------------------------------------------------
+# Endpoints API (DRF)
+# -------------------------------------------------------------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def budget_list_api(request):
+    """Listado de presupuestos en formato JSON."""
+    budgets = Budget.objects.filter(user=request.user).select_related("category")
+    serializer = BudgetSerializer(budgets, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def notification_list_api(request):
+    """Listado de notificaciones en formato JSON."""
+    notifications = Notification.objects.filter(user=request.user)
+    serializer = NotificationSerializer(notifications, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read_api(request, pk: int):
+    """Marca una notificación como leída mediante API."""
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
     notification.is_read = True
     notification.save(update_fields=["is_read"])
-    return redirect("budget:notification_list")
+    return Response({"status": "ok"})

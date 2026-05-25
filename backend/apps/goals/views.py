@@ -1,14 +1,24 @@
 """
 Views – goals
-Gestión de metas de ahorro.
+Gestión de metas de ahorro: vistas legacy (Django templates) + API REST.
 """
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
 from .models import SavingsGoal
+from .serializers import SavingsGoalSerializer
 from services import goals_service
 
+
+# ---------------------------------------------------------------
+# Legacy / Template Views
+# ---------------------------------------------------------------
 
 @login_required
 def goal_list(request):
@@ -73,3 +83,64 @@ def goal_deposit(request, pk: int):
         except ValueError as e:
             messages.error(request, str(e))
     return render(request, "goals/goal_deposit.html", {"goal": goal})
+
+
+# ---------------------------------------------------------------
+# API REST (DRF) – usados por el frontend React
+# ---------------------------------------------------------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def goal_list_api(request):
+    """Devuelve todas las metas del usuario en JSON."""
+    goals = SavingsGoal.objects.filter(user=request.user)
+    serializer = SavingsGoalSerializer(goals, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def goal_create_api(request):
+    """Crea una nueva meta mediante API JSON."""
+    try:
+        goal = goals_service.goal_create(user=request.user, data=request.data)
+        serializer = SavingsGoalSerializer(goal)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def goal_update_api(request, pk: int):
+    """Actualiza datos de una meta existente."""
+    goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)
+    try:
+        goals_service.goal_update(goal=goal, data=request.data)
+        serializer = SavingsGoalSerializer(goal)
+        return Response(serializer.data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def goal_deposit_api(request, pk: int):
+    """Registra un aporte a una meta mediante API JSON."""
+    goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)
+    amount_raw = request.data.get("amount")
+    try:
+        goal = goals_service.goal_deposit(goal=goal, amount_raw=amount_raw)
+        serializer = SavingsGoalSerializer(goal)
+        return Response(serializer.data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def goal_delete_api(request, pk: int):
+    """Elimina una meta de ahorro."""
+    goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)
+    goal.delete()
+    return Response({"status": "deleted"}, status=status.HTTP_204_NO_CONTENT)

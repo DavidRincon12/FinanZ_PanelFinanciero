@@ -7,6 +7,11 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import TransactionSerializer, CategorySerializer
 
 from .models import Transaction, Category
 from services import finance_service, finance_selectors
@@ -91,18 +96,79 @@ def category_create(request):
 
 
 # -------------------------------------------------------------------
-# Endpoints JSON para Chart.js (AJAX)
+# Endpoints API (DRF)
 # -------------------------------------------------------------------
 
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def transaction_list_api(request):
+    """Listado de transacciones en formato JSON."""
+    transactions = finance_selectors.get_user_transactions(user=request.user)
+    serializer = TransactionSerializer(transactions, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def transaction_create_api(request):
+    """Crea una transacción mediante API JSON."""
+    serializer = TransactionSerializer(data=request.data)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        service_data = {
+            "amount": validated_data["amount"],
+            "transaction_type": validated_data["transaction_type"],
+            "category_id": validated_data["category"].pk if validated_data.get("category") else None,
+            "description": validated_data.get("description", ""),
+            "date": validated_data.get("date"),
+        }
+        try:
+            transaction = finance_service.transaction_create(user=request.user, data=service_data)
+            out_serializer = TransactionSerializer(transaction)
+            return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def category_list_api(request):
+    """Listado de categorías en formato JSON."""
+    categories = finance_selectors.get_user_categories(user=request.user)
+    serializer = CategorySerializer(categories, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def category_create_api(request):
+    """Crea una categoría personalizada mediante API JSON."""
+    try:
+        category = finance_service.category_create(user=request.user, data=request.data)
+        serializer = CategorySerializer(category)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def balance_api(request):
-    """Devuelve el historial de balance mensual en formato JSON."""
-    data = finance_selectors.get_monthly_balance_series(user=request.user)
-    return JsonResponse({"data": data})
+    """Obtiene el balance histórico del usuario para gráficas."""
+    from services.finance_selectors import get_monthly_balance_series
+    data = get_monthly_balance_series(user=request.user)
+    return Response({"data": data})
 
-
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def expenses_by_category_api(request):
-    """Devuelve la distribución de gastos por categoría en formato JSON."""
-    data = finance_selectors.get_expenses_by_category(user=request.user)
-    return JsonResponse({"data": data})
+    """Obtiene gastos agrupados por categoría para gráficas."""
+    from services.finance_selectors import get_expenses_by_category
+    data = get_expenses_by_category(user=request.user)
+    return Response({"data": data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_balance_api(request):
+    """Devuelve el balance total real del usuario (ingresos - gastos acumulados)."""
+    from services.finance_selectors import calculate_balance
+    balance = calculate_balance(user=request.user)
+    return Response({"balance": float(balance)})
