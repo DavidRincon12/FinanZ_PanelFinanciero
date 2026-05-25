@@ -6,6 +6,7 @@ la creación asincrónica (signup automático) o búsqueda del CustomUser en Dja
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 from django.contrib.auth import get_user_model
 
@@ -31,12 +32,25 @@ def verify_firebase_token(id_token: str) -> dict:
     if not auth:
         raise ValueError("firebase-admin no está importado o configurado correctamente.")
 
-    try:
-        decoded_token = auth.verify_id_token(id_token)
-        return decoded_token
-    except Exception as exc:
-        logger.error("Token de Firebase inválido o expirado: %s", exc)
-        raise ValueError("No se pudo verificar el token de Google.") from exc
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            decoded_token = auth.verify_id_token(id_token)
+            return decoded_token
+        except Exception as exc:
+            exc_str = str(exc)
+            # Si el reloj de la máquina local está ligeramente atrasado respecto al de Google,
+            # esperamos un breve instante y reintentamos.
+            if "Token used too early" in exc_str and attempt < max_retries - 1:
+                logger.warning(
+                    "Desincronización de reloj detectada (%s). Reintentando en 1 segundo...",
+                    exc_str
+                )
+                time.sleep(1)
+                continue
+            
+            logger.error("Token de Firebase inválido o expirado: %s", exc)
+            raise ValueError("No se pudo verificar el token de Google.") from exc
 
 
 def get_or_create_user_from_firebase(decoded_token: dict) -> "CustomUser":

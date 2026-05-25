@@ -107,12 +107,12 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 
 # ---------------------------------------------------------------------------
-# Templates – apunta al directorio frontend/templates/
+# Templates – apunta al directorio frontend/legacy/templates/
 # ---------------------------------------------------------------------------
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [ROOT_DIR / "frontend" / "templates"],
+        "DIRS": [ROOT_DIR / "frontend" / "legacy" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -159,10 +159,10 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Archivos estáticos y media – apuntan al directorio frontend/
+# Archivos estáticos y media – apuntan al directorio frontend/legacy/
 # ---------------------------------------------------------------------------
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [ROOT_DIR / "frontend" / "static"]
+STATICFILES_DIRS = [ROOT_DIR / "frontend" / "legacy" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"   # destino para collectstatic en producción
 
 MEDIA_URL = "/media/"

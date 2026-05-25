@@ -17,3 +17,9 @@ Pillow>=10.0
 
 # Autenticación de Firebase (Backend SDK)
 firebase-admin>=6.5.0
+
+# API REST con Django REST Framework
+djangorestframework>=3.14
+
+# Soporte para Cross-Origin Resource Sharing (CORS)
+django-cors-headers>=4.0
