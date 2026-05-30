@@ -151,3 +151,75 @@ def mark_notification_read_api(request, pk: int):
     notification.is_read = True
     notification.save(update_fields=["is_read"])
     return Response({"status": "ok"})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def budget_create_api(request):
+    """Crea un presupuesto mensual mediante API JSON."""
+    try:
+        data = {
+            "category_id": request.data.get("category"),
+            "limit_amount": request.data.get("amount"),
+            "month": request.data.get("month"),
+            "year": request.data.get("year"),
+            "warning_threshold": request.data.get("warning_threshold"),
+            "critical_threshold": request.data.get("critical_threshold"),
+        }
+        budget = budget_service.budget_create(user=request.user, data=data)
+        serializer = BudgetSerializer(budget)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def budget_update_api(request, pk: int):
+    """Edita el límite de un presupuesto existente mediante API JSON."""
+    budget = get_object_or_404(Budget, pk=pk, user=request.user)
+    try:
+        data = {}
+        if "amount" in request.data:
+            data["limit_amount"] = request.data["amount"]
+        if "warning_threshold" in request.data:
+            data["warning_threshold"] = request.data["warning_threshold"]
+        if "critical_threshold" in request.data:
+            data["critical_threshold"] = request.data["critical_threshold"]
+        
+        updated_budget = budget_service.budget_update(budget=budget, data=data)
+        serializer = BudgetSerializer(updated_budget)
+        return Response(serializer.data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def budget_delete_api(request, pk: int):
+    """Elimina un presupuesto existente mediante API JSON."""
+    budget = get_object_or_404(Budget, pk=pk, user=request.user)
+    category_name = budget.category.name
+    Notification.objects.filter(
+        user=request.user,
+        title__icontains=category_name,
+    ).delete()
+    budget.delete()
+    return Response({"status": "ok", "message": f"Presupuesto de '{category_name}' eliminado."})
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def notification_delete_api(request, pk: int):
+    """Elimina una notificación mediante API JSON."""
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    notification.delete()
+    return Response({"status": "ok"})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def notification_clear_all_api(request):
+    """Elimina todas las notificaciones del usuario mediante API JSON."""
+    Notification.objects.filter(user=request.user).delete()
+    return Response({"status": "ok"})

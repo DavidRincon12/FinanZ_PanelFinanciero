@@ -7,7 +7,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 import json
 import logging
 
@@ -221,6 +221,7 @@ def logout_api(request):
     return JsonResponse({"status": "success", "message": "Sesión cerrada correctamente."})
 
 
+@ensure_csrf_cookie
 def me_api(request):
     """Verifica si el usuario está autenticado y retorna sus datos."""
     if request.user.is_authenticated:
@@ -230,6 +231,61 @@ def me_api(request):
                 "id": str(request.user.id),
                 "email": request.user.email,
                 "name": request.user.get_full_name() or request.user.username,
+                "monthly_budget": float(request.user.monthly_budget),
+                "alert_at_80_percent": request.user.alert_at_80_percent,
+                "alert_at_100_percent": request.user.alert_at_100_percent,
+                "timezone": request.user.timezone,
             }
         })
     return JsonResponse({"authenticated": False}, status=401)
+
+
+@csrf_exempt
+@login_required
+def profile_update_api(request):
+    """
+    API para actualizar la configuración de perfil del usuario.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        user = request.user
+        
+        if "monthly_budget" in data:
+            try:
+                from decimal import Decimal
+                val = Decimal(str(data["monthly_budget"]))
+                if val < 0:
+                    return JsonResponse({"error": "El presupuesto mensual no puede ser menor a 0"}, status=400)
+                user.monthly_budget = val
+            except Exception:
+                return JsonResponse({"error": "Presupuesto mensual inválido"}, status=400)
+                
+        if "alert_at_80_percent" in data:
+            user.alert_at_80_percent = bool(data["alert_at_80_percent"])
+            
+        if "alert_at_100_percent" in data:
+            user.alert_at_100_percent = bool(data["alert_at_100_percent"])
+            
+        if "timezone" in data:
+            user.timezone = str(data["timezone"])
+            
+        user.save()
+        
+        return JsonResponse({
+            "status": "success",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.get_full_name() or user.username,
+                "monthly_budget": float(user.monthly_budget),
+                "alert_at_80_percent": user.alert_at_80_percent,
+                "alert_at_100_percent": user.alert_at_100_percent,
+                "timezone": user.timezone,
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error en profile_update_api: {e}")
+        return JsonResponse({"error": str(e)}, status=500)

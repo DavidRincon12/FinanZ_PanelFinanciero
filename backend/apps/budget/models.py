@@ -35,8 +35,18 @@ class Budget(models.Model):
     year = models.PositiveSmallIntegerField(verbose_name="Año")
 
     # Flags para controlar si ya se envió la alerta (evita spam)
-    alerted_80 = models.BooleanField(default=False, verbose_name="Alerta 80% enviada")
-    alerted_100 = models.BooleanField(default=False, verbose_name="Alerta 100% enviada")
+    alerted_80 = models.BooleanField(default=False, verbose_name="Alerta advertencia enviada")
+    alerted_100 = models.BooleanField(default=False, verbose_name="Alerta crítica enviada")
+
+    # Umbrales de alerta personalizados
+    warning_threshold = models.PositiveSmallIntegerField(
+        default=80,
+        verbose_name="Umbral de advertencia (%)",
+    )
+    critical_threshold = models.PositiveSmallIntegerField(
+        default=100,
+        verbose_name="Umbral crítico (%)",
+    )
 
     class Meta:
         verbose_name = "Presupuesto"

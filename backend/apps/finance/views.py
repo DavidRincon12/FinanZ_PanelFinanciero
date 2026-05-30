@@ -129,6 +129,46 @@ def transaction_create_api(request):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST', 'PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def transaction_update_api(request, pk: int):
+    """Actualiza una transacción mediante API JSON."""
+    transaction = get_object_or_404(Transaction, pk=pk, user=request.user)
+    serializer = TransactionSerializer(transaction, data=request.data, partial=True)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        service_data = {}
+        if "amount" in validated_data:
+            service_data["amount"] = validated_data["amount"]
+        if "transaction_type" in validated_data:
+            service_data["transaction_type"] = validated_data["transaction_type"]
+        if "category" in validated_data:
+            service_data["category_id"] = validated_data["category"].pk if validated_data["category"] else None
+        elif "category" in request.data:
+            service_data["category_id"] = None
+        if "description" in validated_data:
+            service_data["description"] = validated_data["description"]
+        if "date" in validated_data:
+            service_data["date"] = validated_data["date"]
+
+        try:
+            updated_tx = finance_service.transaction_update(instance=transaction, data=service_data)
+            out_serializer = TransactionSerializer(updated_tx)
+            return Response(out_serializer.data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def transaction_delete_api(request, pk: int):
+    """Elimina una transacción mediante API JSON."""
+    transaction = get_object_or_404(Transaction, pk=pk, user=request.user)
+    transaction.delete()
+    return Response({"status": "ok", "message": "Transacción eliminada correctamente."})
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def category_list_api(request):
@@ -147,6 +187,28 @@ def category_create_api(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except ValueError as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def category_update_api(request, pk: int):
+    """Actualiza una categoría mediante API JSON."""
+    category = get_object_or_404(Category, pk=pk, owner=request.user)
+    try:
+        updated_category = finance_service.category_update(instance=category, data=request.data)
+        serializer = CategorySerializer(updated_category)
+        return Response(serializer.data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def category_delete_api(request, pk: int):
+    """Desactiva (elimina) una categoría mediante API JSON."""
+    category = get_object_or_404(Category, pk=pk, owner=request.user)
+    finance_service.category_delete(instance=category)
+    return Response({"status": "ok", "message": "Categoría eliminada correctamente."})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -168,7 +230,36 @@ def expenses_by_category_api(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def total_balance_api(request):
-    """Devuelve el balance total real del usuario (ingresos - gastos acumulados)."""
-    from services.finance_selectors import calculate_balance
-    balance = calculate_balance(user=request.user)
-    return Response({"balance": float(balance)})
+    """Devuelve el balance total real del usuario e ingresos/egresos del mes corriente."""
+    from django.db.models import Sum, Q
+    from apps.finance.models import Transaction
+    from decimal import Decimal
+    from datetime import date
+
+    user = request.user
+    today = date.today()
+
+    # Balance total acumulado (todos los tiempos)
+    agg_all = Transaction.objects.filter(user=user).aggregate(
+        total_income=Sum("amount", filter=Q(transaction_type=Transaction.INCOME)),
+        total_expense=Sum("amount", filter=Q(transaction_type=Transaction.EXPENSE)),
+    )
+    balance = (agg_all["total_income"] or Decimal("0")) - (agg_all["total_expense"] or Decimal("0"))
+
+    # Ingresos y egresos del mes actual
+    agg_month = Transaction.objects.filter(
+        user=user,
+        date__year=today.year,
+        date__month=today.month
+    ).aggregate(
+        month_income=Sum("amount", filter=Q(transaction_type=Transaction.INCOME)),
+        month_expense=Sum("amount", filter=Q(transaction_type=Transaction.EXPENSE)),
+    )
+    month_income = agg_month["month_income"] or Decimal("0")
+    month_expense = agg_month["month_expense"] or Decimal("0")
+
+    return Response({
+        "balance": float(balance),
+        "month_income": float(month_income),
+        "month_expense": float(month_expense),
+    })

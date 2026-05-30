@@ -10,7 +10,11 @@ class BudgetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Budget
-        fields = ['id', 'user', 'category', 'category_name', 'category_icon', 'amount', 'spent', 'percentage', 'month', 'year']
+        fields = [
+            'id', 'user', 'category', 'category_name', 'category_icon', 
+            'amount', 'spent', 'percentage', 'month', 'year', 
+            'warning_threshold', 'critical_threshold'
+        ]
         read_only_fields = ['user', 'spent', 'percentage']
 
     def get_spent(self, obj) -> float:
@@ -33,6 +37,8 @@ class BudgetSerializer(serializers.ModelSerializer):
         return (spent / limit) * 100.0
 
 class NotificationSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='level', read_only=True)
+
     class Meta:
         model = Notification
         fields = ['id', 'user', 'title', 'message', 'type', 'is_read', 'created_at']
