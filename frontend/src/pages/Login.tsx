@@ -33,6 +33,25 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setIsSubmitting(true);
+    try {
+      await api.firebaseLogin('development_token');
+      const meResponse = await api.me();
+      if (meResponse.authenticated) {
+        login('session_active', meResponse.user);
+        navigate(from, { replace: true });
+      } else {
+        throw new Error('Google login failed');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Error al iniciar sesión con Google');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
       <div className="max-w-[450px] w-full">
@@ -109,11 +128,19 @@ const Login: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-2 py-4 border border-[#E2E8F0] rounded-2xl hover:bg-[#F8FAFC] transition-all group active:scale-[0.98]">
+            <button 
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isSubmitting}
+              className="flex items-center justify-center gap-2 py-4 border border-[#E2E8F0] rounded-2xl hover:bg-[#F8FAFC] transition-all group active:scale-[0.98] cursor-pointer"
+            >
               <Wallet size={18} className="text-[#4D5DFB] transition-colors" />
               <span className="text-sm font-bold text-[#334155]">Google</span>
             </button>
-            <button className="flex items-center justify-center gap-2 py-4 border border-[#E2E8F0] rounded-2xl hover:bg-[#F8FAFC] transition-all group active:scale-[0.98]">
+            <button 
+              type="button"
+              className="flex items-center justify-center gap-2 py-4 border border-[#E2E8F0] rounded-2xl hover:bg-[#F8FAFC] transition-all group active:scale-[0.98]"
+            >
               <Target size={18} className="text-[#334155] group-hover:text-black transition-colors" />
               <span className="text-sm font-bold text-[#334155]">Github</span>
             </button>

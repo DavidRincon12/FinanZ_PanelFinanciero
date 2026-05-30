@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, ArrowLeftRight, PiggyBank, TrendingUp, Target, LogOut, Wallet } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PiggyBank, Target, LogOut, Wallet, Tag, Settings } from 'lucide-react';
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -52,9 +52,10 @@ const Sidebar: React.FC = () => {
       <nav className="flex-1">
         <NavItem icon={<LayoutDashboard size={20} />} label="Panel principal" to="/dashboard" />
         <NavItem icon={<ArrowLeftRight size={20} />} label="Transacciones" to="/transactions" />
+        <NavItem icon={<Tag size={20} />} label="Categorías" to="/categories" />
         <NavItem icon={<PiggyBank size={20} />} label="Presupuesto" to="/budgets" />
-        <NavItem icon={<TrendingUp size={20} />} label="Inversiones" to="/investments" />
         <NavItem icon={<Target size={20} />} label="Metas" to="/goals" />
+        <NavItem icon={<Settings size={20} />} label="Ajustes" to="/profile" />
       </nav>
 
       {/* Footer Info / Logout */}

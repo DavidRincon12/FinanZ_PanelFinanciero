@@ -6,6 +6,10 @@ interface User {
   email: string;
   name: string;
   photoURL?: string;
+  monthly_budget?: number;
+  alert_at_80_percent?: boolean;
+  alert_at_100_percent?: boolean;
+  timezone?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +17,7 @@ interface AuthContextType {
   loading: boolean;
   login: (token: string, userData: User) => void;
   logout: () => void;
+  updateUser: (updatedData: Partial<User>) => void;
   isAuthenticated: boolean;
 }
 
@@ -63,8 +68,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateUser = (updatedData: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const newUser = { ...prev, ...updatedData };
+      localStorage.setItem('finanz_user', JSON.stringify(newUser));
+      return newUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

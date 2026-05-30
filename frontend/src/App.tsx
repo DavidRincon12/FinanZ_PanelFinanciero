@@ -11,6 +11,8 @@ import Unauthorized from './pages/Unauthorized';
 import UnderConstruction from './pages/UnderConstruction';
 import NotFound from './pages/NotFound';
 import Goals from './pages/Goals';
+import Categories from './pages/Categories';
+import Profile from './pages/Profile';
 
 const App: React.FC = () => {
   return (
@@ -47,6 +49,14 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/categories" 
+            element={
+              <ProtectedRoute>
+                <Categories />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Work in Progress Routes */}
           <Route 
@@ -62,6 +72,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Goals />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } 
           />

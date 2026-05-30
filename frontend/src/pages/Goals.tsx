@@ -8,7 +8,7 @@ import type { SavingsGoal } from '../services/api';
 import {
   Plus, Target, Loader2, X, DollarSign, Calendar,
   CheckCircle2, Clock, Pause, Trash2, PiggyBank, ChevronRight,
-  Sparkles, TrendingUp,
+  Sparkles, TrendingUp, Pencil
 } from 'lucide-react';
 
 // ─── Emoji Picker ─────────────────────────────────────────────────────────────
@@ -60,11 +60,12 @@ const ProgressRing = ({ percent, size = 80, icon, completed }: {
 
 // ─── Goal Card ────────────────────────────────────────────────────────────────
 const GoalCard = ({
-  goal, onDeposit, onDelete,
+  goal, onDeposit, onDelete, onEdit,
 }: {
   goal: SavingsGoal;
   onDeposit: (g: SavingsGoal) => void;
   onDelete: (id: number) => void;
+  onEdit: (g: SavingsGoal) => void;
 }) => {
   // DRF returns DecimalField as strings — parse to float for display
   const percent   = parseFloat(String(goal.progress_percent));
@@ -87,12 +88,22 @@ const GoalCard = ({
             </div>
           </div>
         </div>
-        <button
-          onClick={() => onDelete(goal.id)}
-          className="flex-shrink-0 text-[#CBD5E1] hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-50 ml-2"
-        >
-          <Trash2 size={15} />
-        </button>
+        <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+          <button
+            onClick={() => onEdit(goal)}
+            className="text-[#CBD5E1] hover:text-[#4D5DFB] transition-colors p-1.5 rounded-lg hover:bg-indigo-50"
+            title="Editar meta"
+          >
+            <Pencil size={15} />
+          </button>
+          <button
+            onClick={() => onDelete(goal.id)}
+            className="text-[#CBD5E1] hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-50"
+            title="Eliminar meta"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -304,6 +315,188 @@ const CreateGoalModal = ({
   );
 };
 
+// ─── Edit Goal Modal ──────────────────────────────────────────────────────────
+const EditGoalModal = ({
+  goal, onClose, onUpdated,
+}: {
+  goal: SavingsGoal;
+  onClose: () => void;
+  onUpdated: (g: SavingsGoal) => void;
+}) => {
+  const { toast } = useToast();
+  const [name, setName] = useState(goal.name);
+  const [description, setDescription] = useState(goal.description || '');
+  const [targetAmount, setTargetAmount] = useState(new Intl.NumberFormat('de-DE').format(Math.round(parseFloat(String(goal.target_amount)))));
+  const [deadline, setDeadline] = useState(goal.deadline || '');
+  const [icon, setIcon] = useState(goal.icon || '🎯');
+  const [status, setStatus] = useState<SavingsGoal['status']>(goal.status);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/\D/g, '');
+    if (!v) { setTargetAmount(''); return; }
+    setTargetAmount(new Intl.NumberFormat('de-DE').format(parseInt(v)));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!name.trim() || !targetAmount) {
+      setError('Nombre y monto son obligatorios.');
+      return;
+    }
+    const numeric = parseFloat(targetAmount.replace(/\./g, ''));
+    setIsLoading(true);
+    try {
+      const updated = await api.updateGoal(goal.id, {
+        name: name.trim(),
+        description: description.trim(),
+        icon,
+        target_amount: numeric,
+        deadline: deadline || null,
+        status,
+      });
+      toast('success', '¡Meta actualizada!', `"${updated.name}" fue actualizada correctamente.`);
+      onUpdated(updated);
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar la meta');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(15,23,42,0.4)' }}
+    >
+      <div className="card w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ animation: 'confirmPop 0.22s ease' }}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-[#1E293B] flex items-center gap-2">
+            <Target className="text-[#4D5DFB]" size={22} /> Editar Meta
+          </h2>
+          <button onClick={onClose} className="text-[#94A3B8] hover:text-[#475569] transition-colors p-1">
+            <X size={22} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Icon picker */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Ícono</label>
+            <div className="grid grid-cols-10 gap-1.5">
+              {GOAL_ICONS.map(em => (
+                <button key={em} type="button" onClick={() => setIcon(em)}
+                  className={`text-xl p-1.5 rounded-lg transition-all ${
+                    icon === em ? 'bg-indigo-100 scale-110 ring-2 ring-indigo-400' : 'hover:bg-slate-100'
+                  }`}>
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Nombre *</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="Ej: Fondo de emergencia, Viaje a Europa…"
+              className="w-full px-4 py-3 bg-gray-50 border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#4D5DFB] transition-all"
+              required />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Descripción (opcional)</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="¿Para qué es esta meta?"
+              rows={2}
+              className="w-full px-4 py-3 bg-gray-50 border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#4D5DFB] transition-all resize-none" />
+          </div>
+
+          {/* Target Amount */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Monto objetivo *</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]">
+                <DollarSign size={18} />
+              </div>
+              <input type="text" value={targetAmount} onChange={handleAmountChange}
+                placeholder="0"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#4D5DFB] transition-all text-lg font-bold text-slate-700"
+                required />
+            </div>
+          </div>
+
+          {/* Deadline */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Fecha límite (opcional)</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]">
+                <Calendar size={18} />
+              </div>
+              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#4D5DFB] transition-all uppercase text-xs font-bold text-[#64748B]" />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-bold text-[#1E293B] mb-2">Estado de la meta</label>
+            <div className="flex gap-2">
+              {(['active', 'completed', 'paused'] as const).map(s => {
+                const label = s === 'active' ? 'Activa' : s === 'completed' ? 'Completada' : 'Pausada';
+                const colorClass = s === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700' : s === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700';
+                const isActive = status === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatus(s)}
+                    className={`flex-1 py-3 px-3 text-xs font-bold border rounded-xl transition-all cursor-pointer text-center ${
+                      isActive ? colorClass + ' ring-2 ring-indigo-400' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={isLoading}
+              className="flex-1 py-3.5 bg-[#4D5DFB] text-white font-bold rounded-xl hover:bg-[#3B4AD9] transition-all disabled:opacity-50 shadow-lg shadow-indigo-200">
+              {isLoading ? 'Guardando…' : 'Guardar Cambios'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="flex-1 py-3.5 border border-[#E2E8F0] text-[#64748B] font-medium rounded-xl hover:bg-gray-50 transition-all">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <style>{`
+        @keyframes confirmPop {
+          from { opacity:0; transform: scale(0.94) translateY(12px); }
+          to   { opacity:1; transform: scale(1)    translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
 // ─── Deposit Modal ────────────────────────────────────────────────────────────
 const DepositModal = ({
   goal, onClose, onDeposited,
@@ -495,6 +688,7 @@ const Goals: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [depositTarget, setDepositTarget] = useState<SavingsGoal | null>(null);
+  const [editTarget, setEditTarget] = useState<SavingsGoal | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'paused'>('all');
 
   const fetchGoals = async () => {
@@ -519,6 +713,11 @@ const Goals: React.FC = () => {
   const handleDeposited = (updated: SavingsGoal) => {
     setGoals(prev => prev.map(g => g.id === updated.id ? updated : g));
     setDepositTarget(null);
+  };
+
+  const handleUpdated = (updated: SavingsGoal) => {
+    setGoals(prev => prev.map(g => g.id === updated.id ? updated : g));
+    setEditTarget(null);
   };
 
   // Guard against React StrictMode double-invocation
@@ -611,7 +810,7 @@ const Goals: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {filtered.map(goal => (
-                <GoalCard key={goal.id} goal={goal} onDeposit={setDepositTarget} onDelete={handleDelete} />
+                <GoalCard key={goal.id} goal={goal} onDeposit={setDepositTarget} onDelete={handleDelete} onEdit={setEditTarget} />
               ))}
             </div>
           )}
@@ -622,6 +821,9 @@ const Goals: React.FC = () => {
       {showCreate && <CreateGoalModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
       {depositTarget && (
         <DepositModal goal={depositTarget} onClose={() => setDepositTarget(null)} onDeposited={handleDeposited} />
+      )}
+      {editTarget && (
+        <EditGoalModal goal={editTarget} onClose={() => setEditTarget(null)} onUpdated={handleUpdated} />
       )}
     </Layout>
   );
