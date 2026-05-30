@@ -39,6 +39,7 @@ const Dashboard: React.FC = () => {
   const [goals, setGoals]                 = useState<SavingsGoal[]>([]);
   const [alerts, setAlerts]               = useState<AppNotification[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,6 +71,8 @@ const Dashboard: React.FC = () => {
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         setIsLoadingAlerts(false);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
@@ -78,7 +81,13 @@ const Dashboard: React.FC = () => {
   return (
     <Layout title="Dashboard">
       <AnimatedPage>
-        <div className="grid grid-cols-12 gap-6">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <Loader2 className="animate-spin text-[#4D5DFB] mb-4" size={48} />
+            <p className="text-slate-500 font-medium animate-pulse">Cargando tu resumen financiero...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-12 gap-6">
           
           {/* Row 1: Metrics Cards */}
           <div className="col-span-12 md:col-span-4">
@@ -362,6 +371,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </AnimatedPage>
     </Layout>
   );

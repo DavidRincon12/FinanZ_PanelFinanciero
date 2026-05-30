@@ -6,22 +6,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/finance/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/budget/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/goals/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
+      // Reenviar al backend Django todo lo que NO sean assets del frontend.
+      // Una sola regla cubre: /api/*, /finance/*, /budget/*, /goals/*, /admin/*, etc.
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/finance': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/budget': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/goals': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/admin': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/static': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/media': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     }
   }
 })

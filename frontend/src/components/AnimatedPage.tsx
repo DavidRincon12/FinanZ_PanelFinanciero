@@ -14,7 +14,7 @@ const pageVariants: any = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
+      duration: 0.25,
       ease: "easeOut", // Using standard easing string for compatibility
     }
   },
@@ -22,7 +22,7 @@ const pageVariants: any = {
     opacity: 0,
     y: -20,
     transition: {
-      duration: 0.3,
+      duration: 0.15,
       ease: "easeIn",
     }
   },

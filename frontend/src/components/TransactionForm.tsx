@@ -18,6 +18,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSuccess, t
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingData, setIsFetchingData] = useState(true);
   
   const dateInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +41,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSuccess, t
         }
       } catch (err) {
         console.error('Error fetching form data:', err);
+      } finally {
+        setIsFetchingData(false);
       }
     };
     loadData();
@@ -106,6 +109,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSuccess, t
   };
 
   const isIncomeDisabled = budgets.some(b => b.category === parseInt(category));
+
+  if (isFetchingData) {
+    return (
+      <div className="card p-8 bg-white border border-[#E0E7FF] shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[400px]" style={{ maxWidth: '672px', margin: '0 auto' }}>
+        <div className="w-12 h-12 border-4 border-[#E2E8F0] border-t-[#4D5DFB] rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-medium animate-pulse">Cargando datos del formulario...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="card p-8 bg-white border border-[#E0E7FF] shadow-lg animate-in fade-in zoom-in duration-300 rounded-2xl" style={{ maxWidth: '672px', margin: '0 auto' }}>

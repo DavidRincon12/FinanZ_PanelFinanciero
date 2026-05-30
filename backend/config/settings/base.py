@@ -178,8 +178,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # SessionAuthenticationWithoutCSRF: subclase que desactiva enforce_csrf
+    # para que las peticiones del frontend React (via proxy Vite) funcionen
+    # sin necesitar el token CSRF, manteniendo la autenticación por sesión.
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'core.authentication.CsrfExemptSessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
 }

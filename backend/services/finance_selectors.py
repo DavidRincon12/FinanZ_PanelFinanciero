@@ -38,13 +38,10 @@ def calculate_balance(user: "CustomUser") -> Decimal:
 
 def ensure_user_default_categories(user: "CustomUser") -> None:
     """
-    Verifica si el usuario tiene categorías. Si no tiene,
-    duplica las categorías del sistema (owner=None) para este usuario.
+    Verifica si el usuario tiene todas las categorías predeterminadas. 
+    Si le faltan, duplica las categorías del sistema (owner=None) para este usuario.
     También migra cualquier transacción o presupuesto que estuviera asociado a la de sistema.
     """
-    if Category.objects.filter(owner=user).exists():
-        return
-
     system_cats = Category.objects.filter(owner=None, category_type=Category.SYSTEM)
     if not system_cats.exists():
         from django.core.management import call_command
@@ -53,6 +50,10 @@ def ensure_user_default_categories(user: "CustomUser") -> None:
             system_cats = Category.objects.filter(owner=None, category_type=Category.SYSTEM)
         except Exception:
             pass
+
+    user_cats_count = Category.objects.filter(owner=user).count()
+    if user_cats_count >= system_cats.count() and system_cats.count() > 0:
+        return
 
     from apps.budget.models import Budget
 
@@ -66,8 +67,9 @@ def ensure_user_default_categories(user: "CustomUser") -> None:
                 "is_active": True,
             }
         )
-        Transaction.objects.filter(user=user, category=sys_cat).update(category=user_cat)
-        Budget.objects.filter(user=user, category=sys_cat).update(category=user_cat)
+        if created:
+            Transaction.objects.filter(user=user, category=sys_cat).update(category=user_cat)
+            Budget.objects.filter(user=user, category=sys_cat).update(category=user_cat)
 
 
 def get_user_categories(user: "CustomUser"):
