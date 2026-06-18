@@ -7,6 +7,11 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import TransactionSerializer, CategorySerializer
 
 from .models import Transaction, Category
 from services import finance_service, finance_selectors
@@ -91,18 +96,170 @@ def category_create(request):
 
 
 # -------------------------------------------------------------------
-# Endpoints JSON para Chart.js (AJAX)
+# Endpoints API (DRF)
 # -------------------------------------------------------------------
 
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def transaction_list_api(request):
+    """Listado de transacciones en formato JSON."""
+    transactions = finance_selectors.get_user_transactions(user=request.user)
+    serializer = TransactionSerializer(transactions, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def transaction_create_api(request):
+    """Crea una transacción mediante API JSON."""
+    serializer = TransactionSerializer(data=request.data)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        service_data = {
+            "amount": validated_data["amount"],
+            "transaction_type": validated_data["transaction_type"],
+            "category_id": validated_data["category"].pk if validated_data.get("category") else None,
+            "description": validated_data.get("description", ""),
+            "date": validated_data.get("date"),
+        }
+        try:
+            transaction = finance_service.transaction_create(user=request.user, data=service_data)
+            out_serializer = TransactionSerializer(transaction)
+            return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def transaction_update_api(request, pk: int):
+    """Actualiza una transacción mediante API JSON."""
+    transaction = get_object_or_404(Transaction, pk=pk, user=request.user)
+    serializer = TransactionSerializer(transaction, data=request.data, partial=True)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        service_data = {}
+        if "amount" in validated_data:
+            service_data["amount"] = validated_data["amount"]
+        if "transaction_type" in validated_data:
+            service_data["transaction_type"] = validated_data["transaction_type"]
+        if "category" in validated_data:
+            service_data["category_id"] = validated_data["category"].pk if validated_data["category"] else None
+        elif "category" in request.data:
+            service_data["category_id"] = None
+        if "description" in validated_data:
+            service_data["description"] = validated_data["description"]
+        if "date" in validated_data:
+            service_data["date"] = validated_data["date"]
+
+        try:
+            updated_tx = finance_service.transaction_update(instance=transaction, data=service_data)
+            out_serializer = TransactionSerializer(updated_tx)
+            return Response(out_serializer.data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def transaction_delete_api(request, pk: int):
+    """Elimina una transacción mediante API JSON."""
+    transaction = get_object_or_404(Transaction, pk=pk, user=request.user)
+    transaction.delete()
+    return Response({"status": "ok", "message": "Transacción eliminada correctamente."})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def category_list_api(request):
+    """Listado de categorías en formato JSON."""
+    categories = finance_selectors.get_user_categories(user=request.user)
+    serializer = CategorySerializer(categories, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def category_create_api(request):
+    """Crea una categoría personalizada mediante API JSON."""
+    try:
+        category = finance_service.category_create(user=request.user, data=request.data)
+        serializer = CategorySerializer(category)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def category_update_api(request, pk: int):
+    """Actualiza una categoría mediante API JSON."""
+    category = get_object_or_404(Category, pk=pk, owner=request.user)
+    try:
+        updated_category = finance_service.category_update(instance=category, data=request.data)
+        serializer = CategorySerializer(updated_category)
+        return Response(serializer.data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def category_delete_api(request, pk: int):
+    """Desactiva (elimina) una categoría mediante API JSON."""
+    category = get_object_or_404(Category, pk=pk, owner=request.user)
+    finance_service.category_delete(instance=category)
+    return Response({"status": "ok", "message": "Categoría eliminada correctamente."})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def balance_api(request):
-    """Devuelve el historial de balance mensual en formato JSON."""
-    data = finance_selectors.get_monthly_balance_series(user=request.user)
-    return JsonResponse({"data": data})
+    """Obtiene el balance histórico del usuario para gráficas."""
+    from services.finance_selectors import get_monthly_balance_series
+    data = get_monthly_balance_series(user=request.user)
+    return Response({"data": data})
 
-
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def expenses_by_category_api(request):
-    """Devuelve la distribución de gastos por categoría en formato JSON."""
-    data = finance_selectors.get_expenses_by_category(user=request.user)
-    return JsonResponse({"data": data})
+    """Obtiene gastos agrupados por categoría para gráficas."""
+    from services.finance_selectors import get_expenses_by_category
+    data = get_expenses_by_category(user=request.user)
+    return Response({"data": data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_balance_api(request):
+    """Devuelve el balance total real del usuario e ingresos/egresos del mes corriente."""
+    from django.db.models import Sum, Q
+    from apps.finance.models import Transaction
+    from decimal import Decimal
+    from datetime import date
+
+    user = request.user
+    today = date.today()
+
+    # Balance total acumulado (todos los tiempos)
+    agg_all = Transaction.objects.filter(user=user).aggregate(
+        total_income=Sum("amount", filter=Q(transaction_type=Transaction.INCOME)),
+        total_expense=Sum("amount", filter=Q(transaction_type=Transaction.EXPENSE)),
+    )
+    balance = (agg_all["total_income"] or Decimal("0")) - (agg_all["total_expense"] or Decimal("0"))
+
+    # Ingresos y egresos del mes actual
+    agg_month = Transaction.objects.filter(
+        user=user,
+        date__year=today.year,
+        date__month=today.month
+    ).aggregate(
+        month_income=Sum("amount", filter=Q(transaction_type=Transaction.INCOME)),
+        month_expense=Sum("amount", filter=Q(transaction_type=Transaction.EXPENSE)),
+    )
+    month_income = agg_month["month_income"] or Decimal("0")
+    month_expense = agg_month["month_expense"] or Decimal("0")
+
+    return Response({
+        "balance": float(balance),
+        "month_income": float(month_income),
+        "month_expense": float(month_expense),
+    })

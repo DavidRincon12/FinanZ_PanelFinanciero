@@ -13,6 +13,11 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.profile_view, name="profile"),
     
-    # Endpoint AJAX
+    # Endpoints AJAX / API
     path("api/firebase-login/", views.firebase_login, name="firebase_login"),
+    path("api/login/", views.login_api, name="login_api"),
+    path("api/register/", views.register_api, name="register_api"),
+    path("api/logout/", views.logout_api, name="logout_api"),
+    path("api/me/", views.me_api, name="me_api"),
+    path("api/profile/update/", views.profile_update_api, name="profile_update_api"),
 ]

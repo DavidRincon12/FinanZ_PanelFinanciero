@@ -36,10 +36,47 @@ def calculate_balance(user: "CustomUser") -> Decimal:
     return income - expense
 
 
+def ensure_user_default_categories(user: "CustomUser") -> None:
+    """
+    Verifica si el usuario tiene todas las categorías predeterminadas. 
+    Si le faltan, duplica las categorías del sistema (owner=None) para este usuario.
+    También migra cualquier transacción o presupuesto que estuviera asociado a la de sistema.
+    """
+    system_cats = Category.objects.filter(owner=None, category_type=Category.SYSTEM)
+    if not system_cats.exists():
+        from django.core.management import call_command
+        try:
+            call_command("seed_categories")
+            system_cats = Category.objects.filter(owner=None, category_type=Category.SYSTEM)
+        except Exception:
+            pass
+
+    user_cats_count = Category.objects.filter(owner=user).count()
+    if user_cats_count >= system_cats.count() and system_cats.count() > 0:
+        return
+
+    from apps.budget.models import Budget
+
+    for sys_cat in system_cats:
+        user_cat, created = Category.objects.get_or_create(
+            name=sys_cat.name,
+            owner=user,
+            defaults={
+                "icon": sys_cat.icon,
+                "category_type": Category.CUSTOM,
+                "is_active": True,
+            }
+        )
+        if created:
+            Transaction.objects.filter(user=user, category=sys_cat).update(category=user_cat)
+            Budget.objects.filter(user=user, category=sys_cat).update(category=user_cat)
+
+
 def get_user_categories(user: "CustomUser"):
-    """Retorna las categorías disponibles para el usuario (sistema + personalizadas)."""
+    """Retorna las categorías disponibles para el usuario (solo personalizadas/propias)."""
+    ensure_user_default_categories(user)
     return Category.objects.filter(
-        Q(category_type=Category.SYSTEM) | Q(owner=user),
+        owner=user,
         is_active=True,
     ).order_by("name")
 
@@ -49,6 +86,15 @@ def get_monthly_balance_series(user: "CustomUser") -> list[dict]:
     Retorna series de datos mensuales para el gráfico de líneas de Chart.js.
     Formato: [{"month": "2026-01", "balance": 1500.00}, ...]
     """
+    from datetime import date
+    current_year = date.today().year
+
+    # Pre-poblar los 12 meses del año actual con balance 0 para asegurar trazabilidad en el gráfico
+    series: dict[str, Decimal] = {}
+    for m in range(1, 13):
+        key = f"{current_year}-{m:02d}"
+        series[key] = Decimal("0")
+
     monthly = (
         Transaction.objects.filter(user=user)
         .annotate(month=TruncMonth("date"))
@@ -57,8 +103,6 @@ def get_monthly_balance_series(user: "CustomUser") -> list[dict]:
         .order_by("month")
     )
 
-    # Agrupar por mes
-    series: dict[str, Decimal] = {}
     for row in monthly:
         key = row["month"].strftime("%Y-%m")
         amount = row["total"] or Decimal("0")

@@ -1,0 +1,30 @@
+# ============================================================
+# FinanZ – render.yaml (Infrastructure as Code)
+# Render lee este archivo para configurar el servicio automáticamente.
+# ============================================================
+services:
+  - type: web
+    name: finanz-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false            # Lo configurarás manualmente con tu URL de Neon
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false            # URL de tu frontend en Vercel
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FIREBASE_CREDENTIALS_PATH
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.3"

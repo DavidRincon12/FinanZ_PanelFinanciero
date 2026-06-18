@@ -68,9 +68,41 @@ def goal_deposit(goal: SavingsGoal, amount_raw) -> SavingsGoal:
     amount = _parse_positive_amount(amount_raw)
     goal.current_amount += amount
 
+    # Crear una transacción de tipo egreso en la categoría "Ahorros" para reflejar el abono en el balance
+    from apps.finance.models import Category, Transaction
+    from datetime import date
+
+    category = Category.objects.filter(owner=goal.user, name__iexact="ahorros", is_active=True).first()
+    if not category:
+        category = Category.objects.filter(owner=None, name__iexact="ahorros", is_active=True).first()
+    if not category:
+        category = Category.objects.create(
+            name="Ahorros",
+            icon="🏦",
+            category_type=Category.CUSTOM,
+            owner=goal.user
+        )
+
+    Transaction.objects.create(
+        user=goal.user,
+        amount=amount,
+        transaction_type=Transaction.EXPENSE,
+        category=category,
+        description=f"Abono a meta: {goal.name}",
+        date=date.today()
+    )
+
     if goal.current_amount >= goal.target_amount:
         goal.current_amount = goal.target_amount
         goal.status = SavingsGoal.COMPLETED
+        
+        from apps.budget.models import Notification
+        Notification.objects.create(
+            user=goal.user,
+            level=Notification.INFO,
+            title=f"¡Meta cumplida: {goal.name}! 🎉",
+            message=f"Felicidades, has completado tu meta de ahorro '{goal.name}' tras alcanzar el objetivo de ${goal.target_amount:,.2f}."
+        )
 
     goal.save(update_fields=["current_amount", "status", "updated_at"])
     logger.info("SavingsGoal deposit: id=%s amount=%s progress=%.1f%%",

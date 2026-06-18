@@ -165,3 +165,41 @@ def category_create(user: "CustomUser", data: dict) -> Category:
     )
     logger.info("Category created: id=%s user=%s name=%s", category.pk, user.pk, name)
     return category
+
+
+def category_update(instance: Category, data: dict) -> Category:
+    """
+    Actualiza una categoría existente (nombre, ícono).
+    """
+    if "name" in data:
+        name = data["name"].strip()
+        if not name:
+            raise ValueError("El nombre de la categoría no puede estar vacío.")
+        
+        # Verificar que no exista otra categoría con el mismo nombre para este usuario
+        already_exists = Category.objects.filter(
+            owner=instance.owner,
+            name__iexact=name,
+            is_active=True,
+        ).exclude(pk=instance.pk).exists()
+        
+        if already_exists:
+            raise ValueError(f"Ya tienes una categoría llamada '{name}'.")
+        
+        instance.name = name
+        
+    if "icon" in data:
+        instance.icon = data["icon"].strip() or "📦"
+        
+    instance.save()
+    logger.info("Category updated: id=%s name=%s", instance.pk, instance.name)
+    return instance
+
+
+def category_delete(instance: Category) -> None:
+    """
+    Desactiva una categoría existente (marcando is_active=False).
+    """
+    instance.is_active = False
+    instance.save()
+    logger.info("Category deleted (deactivated): id=%s", instance.pk)

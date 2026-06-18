@@ -24,6 +24,10 @@ def check_budget_on_transaction_save(sender, instance: Transaction, created: boo
         category=instance.category,
         transaction_date=instance.date,
     )
+    budget_service.check_general_budget(
+        user=instance.user,
+        transaction_date=instance.date,
+    )
 
 
 @receiver(post_delete, sender=Transaction)

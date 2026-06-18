@@ -24,7 +24,22 @@ DATABASES = {
 # ---------------------------------------------------------------------------
 # Seguridad relajada para desarrollo
 # ---------------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = True   # si se añade django-cors-headers
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Permitir cookies de sesión en peticiones same-site (compatibles con el proxy de Vite en HTTP)
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False
+
+# Evitar que CSRF bloquee peticiones AJAX en desarrollo
+# (Alternativa: usar @csrf_exempt en las vistas de la API)
 
 # ---------------------------------------------------------------------------
 # Caché simple en memoria (sin Redis en local)

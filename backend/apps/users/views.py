@@ -7,7 +7,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 import json
 import logging
 
@@ -49,9 +49,17 @@ def firebase_login(request):
         body = json.loads(request.body)
         id_token = body.get("idToken")
         
-        if not id_token:
-            return JsonResponse({"error": "idToken es requerido"}, status=400)
-            
+        # DEVELOPMENT BYPASS: Si es 'development_token' y estamos en DEBUG, saltamos verificación
+        if settings.DEBUG and id_token == "development_token":
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user, _ = User.objects.get_or_create(
+                email="dev@example.com",
+                defaults={"username": "dev_user", "first_name": "Dev", "last_name": "User"}
+            )
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            return JsonResponse({"status": "success", "message": "Autenticado en modo desarrollo."})
+
         # Llamar a nuestra capa de servicios (aisla la lógica de Firebase)
         decoded_token = verify_firebase_token(id_token)
         user = get_or_create_user_from_firebase(decoded_token)
@@ -107,3 +115,177 @@ def dashboard(request):
 def profile_view(request):
     """Perfil y configuración de alertas del usuario."""
     return render(request, "users/profile.html", {"user": request.user})
+
+
+@csrf_exempt
+def login_api(request):
+    """API de inicio de sesión con email y contraseña."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        password = data.get("password")
+        
+        if not email or not password:
+            return JsonResponse({"error": "Faltan campos requeridos"}, status=400)
+        
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Credenciales inválidas"}, status=401)
+            
+        from django.contrib.auth import authenticate
+        authenticated_user = authenticate(request, username=user.username, password=password)
+        
+        if authenticated_user is not None:
+            login(request, authenticated_user)
+            return JsonResponse({
+                "status": "success",
+                "user": {
+                    "id": str(authenticated_user.id),
+                    "email": authenticated_user.email,
+                    "name": authenticated_user.get_full_name() or authenticated_user.username,
+                }
+            })
+        else:
+            return JsonResponse({"error": "Credenciales inválidas"}, status=401)
+    except Exception as e:
+        logger.error(f"Error en login_api: {e}")
+        return JsonResponse({"error": "Error interno del servidor"}, status=500)
+
+
+@csrf_exempt
+def register_api(request):
+    """API de registro para nuevos usuarios."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        password = data.get("password")
+        name = data.get("name", "")
+        
+        if not email or not password:
+            return JsonResponse({"error": "Faltan campos requeridos"}, status=400)
+            
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if User.objects.filter(email=email).exists():
+            return JsonResponse({"error": "El correo electrónico ya está registrado"}, status=400)
+            
+        username = email.split('@')[0]
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}_{counter}"
+            counter += 1
+            
+        first_name = name
+        last_name = ""
+        if " " in name:
+            parts = name.split(" ", 1)
+            first_name = parts[0]
+            last_name = parts[1]
+            
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
+        
+        # Iniciar sesión automáticamente
+        login(request, user)
+        
+        return JsonResponse({
+            "status": "success",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.get_full_name() or user.username,
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error en register_api: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def logout_api(request):
+    """API de cierre de sesión."""
+    logout(request)
+    return JsonResponse({"status": "success", "message": "Sesión cerrada correctamente."})
+
+
+@ensure_csrf_cookie
+def me_api(request):
+    """Verifica si el usuario está autenticado y retorna sus datos."""
+    if request.user.is_authenticated:
+        return JsonResponse({
+            "authenticated": True,
+            "user": {
+                "id": str(request.user.id),
+                "email": request.user.email,
+                "name": request.user.get_full_name() or request.user.username,
+                "monthly_budget": float(request.user.monthly_budget),
+                "alert_at_80_percent": request.user.alert_at_80_percent,
+                "alert_at_100_percent": request.user.alert_at_100_percent,
+                "timezone": request.user.timezone,
+            }
+        })
+    return JsonResponse({"authenticated": False}, status=401)
+
+
+@csrf_exempt
+@login_required
+def profile_update_api(request):
+    """
+    API para actualizar la configuración de perfil del usuario.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        user = request.user
+        
+        if "monthly_budget" in data:
+            try:
+                from decimal import Decimal
+                val = Decimal(str(data["monthly_budget"]))
+                if val < 0:
+                    return JsonResponse({"error": "El presupuesto mensual no puede ser menor a 0"}, status=400)
+                user.monthly_budget = val
+            except Exception:
+                return JsonResponse({"error": "Presupuesto mensual inválido"}, status=400)
+                
+        if "alert_at_80_percent" in data:
+            user.alert_at_80_percent = bool(data["alert_at_80_percent"])
+            
+        if "alert_at_100_percent" in data:
+            user.alert_at_100_percent = bool(data["alert_at_100_percent"])
+            
+        if "timezone" in data:
+            user.timezone = str(data["timezone"])
+            
+        user.save()
+        
+        return JsonResponse({
+            "status": "success",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.get_full_name() or user.username,
+                "monthly_budget": float(user.monthly_budget),
+                "alert_at_80_percent": user.alert_at_80_percent,
+                "alert_at_100_percent": user.alert_at_100_percent,
+                "timezone": user.timezone,
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error en profile_update_api: {e}")
+        return JsonResponse({"error": str(e)}, status=500)

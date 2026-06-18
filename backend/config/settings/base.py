@@ -77,7 +77,8 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    # Añadir librerías externas aquí según se instalen
+    "rest_framework",
+    "corsheaders",
 ]
 
 LOCAL_APPS = [
@@ -93,6 +94,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # Middleware
 # ---------------------------------------------------------------------------
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -167,20 +169,20 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # ---------------------------------------------------------------------------
-# Clave primaria por defecto
+# CORS & REST Framework
 # ---------------------------------------------------------------------------
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo local
+CORS_ALLOW_CREDENTIALS = True
 
-# ---------------------------------------------------------------------------
-# Email – valores base (sobreescritos en local.py / production.py)
-# ---------------------------------------------------------------------------
-EMAIL_BACKEND = env(
-    "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
-)
-EMAIL_HOST = env("EMAIL_HOST", default="")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="FinanZ <noreply@finanz.app>")
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    # SessionAuthenticationWithoutCSRF: subclase que desactiva enforce_csrf
+    # para que las peticiones del frontend React (via proxy Vite) funcionen
+    # sin necesitar el token CSRF, manteniendo la autenticación por sesión.
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'core.authentication.CsrfExemptSessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+}
