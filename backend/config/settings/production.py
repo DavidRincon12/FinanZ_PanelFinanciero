@@ -39,6 +39,11 @@ MIDDLEWARE = [
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# En producción el frontend React se sirve desde Vercel, no desde Django.
+# Eliminar las rutas del frontend que no existen en el servidor.
+STATICFILES_DIRS = []
+TEMPLATES[0]["DIRS"] = []  # type: ignore[index]
+
 # ---------------------------------------------------------------------------
 # CORS – permitir peticiones desde el frontend en Vercel
 # ---------------------------------------------------------------------------
