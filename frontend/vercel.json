@@ -9,14 +9,14 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/:path*",     "destination": "https://finanz-backend.onrender.com/api/:path*" },
-    { "source": "/finance/:path*", "destination": "https://finanz-backend.onrender.com/finance/:path*" },
-    { "source": "/budget/:path*",  "destination": "https://finanz-backend.onrender.com/budget/:path*" },
-    { "source": "/goals/:path*",   "destination": "https://finanz-backend.onrender.com/goals/:path*" },
-    { "source": "/admin/:path*",   "destination": "https://finanz-backend.onrender.com/admin/:path*" },
-    { "source": "/health/:path*",  "destination": "https://finanz-backend.onrender.com/health/:path*" },
-    { "source": "/static/:path*",  "destination": "https://finanz-backend.onrender.com/static/:path*" },
-    { "source": "/media/:path*",   "destination": "https://finanz-backend.onrender.com/media/:path*" },
+    { "source": "/api/(.*)",     "destination": "https://finanz-backend.onrender.com/api/$1" },
+    { "source": "/finance/(.*)", "destination": "https://finanz-backend.onrender.com/finance/$1" },
+    { "source": "/budget/(.*)",  "destination": "https://finanz-backend.onrender.com/budget/$1" },
+    { "source": "/goals/(.*)",   "destination": "https://finanz-backend.onrender.com/goals/$1" },
+    { "source": "/admin/(.*)",   "destination": "https://finanz-backend.onrender.com/admin/$1" },
+    { "source": "/health/(.*)",  "destination": "https://finanz-backend.onrender.com/health/$1" },
+    { "source": "/static/(.*)",  "destination": "https://finanz-backend.onrender.com/static/$1" },
+    { "source": "/media/(.*)",   "destination": "https://finanz-backend.onrender.com/media/$1" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
