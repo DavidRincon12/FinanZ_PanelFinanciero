@@ -94,14 +94,14 @@ const Login: React.FC = () => {
         }
       };
 
-      google.accounts.id.initialize({
+      window.google!.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: window.handleCredentialResponse,
       });
 
       const btnContainer = document.getElementById('btnGoogleContainer');
       if (btnContainer) {
-        google.accounts.id.renderButton(btnContainer, {
+        window.google!.accounts.id.renderButton(btnContainer, {
           theme: 'outline',
           size: 'large',
           type: 'standard',
