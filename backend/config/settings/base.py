@@ -24,20 +24,39 @@ environ.Env.read_env(ROOT_DIR / ".env")
 import firebase_admin
 from firebase_admin import credentials
 import logging
+import json
+import base64
+import tempfile
+import os
+
 logger = logging.getLogger(__name__)
 
-# En desarrollo leemos un archivo JSON local.
-# En producción (Render) lo podríamos pasar vía base64 o como variable de entorno
+# En producción (Render): credenciales vía FIREBASE_CREDENTIALS_BASE64
+# En desarrollo: archivo local firebase-credentials.json
 FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default=str(ROOT_DIR / "firebase-credentials.json"))
+FIREBASE_CREDENTIALS_BASE64 = env("FIREBASE_CREDENTIALS_BASE64", default="")
 
 try:
     if not firebase_admin._apps:
-        cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-        logger.info("Firebase Admin inicializado correctamente.")
+        if FIREBASE_CREDENTIALS_BASE64:
+            # Decodificar Base64 → JSON → archivo temporal
+            cred_json = base64.b64decode(FIREBASE_CREDENTIALS_BASE64).decode("utf-8")
+            cred_dict = json.loads(cred_json)
+            cred = credentials.Certificate(cred_dict)
+            logger.info("Firebase Admin inicializado desde FIREBASE_CREDENTIALS_BASE64.")
+        elif os.path.exists(FIREBASE_CREDENTIALS_PATH):
+            cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+            logger.info("Firebase Admin inicializado desde archivo JSON local.")
+        else:
+            cred = None
+            logger.warning("No se encontraron credenciales de Firebase (ni Base64 ni archivo).")
+
+        if cred:
+            firebase_admin.initialize_app(cred)
 except Exception as e:
-    logger.warning("No se pudo inicializar Firebase Admin (probablemente falte el archivo JSON).")
+    logger.warning("No se pudo inicializar Firebase Admin.")
     logger.warning(f"Error: {e}")
+
 
 # ---------------------------------------------------------------------------
 # Firebase Configuración Pública (Client-Side)

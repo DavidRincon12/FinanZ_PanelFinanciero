@@ -6,6 +6,12 @@
 # Framework principal
 Django>=5.1,<6.0
 
+# API REST
+djangorestframework>=3.15
+
+# CORS headers
+django-cors-headers>=4.4
+
 # Variables de entorno y gestión de secretos
 django-environ>=0.11
 
@@ -17,3 +23,4 @@ Pillow>=10.0
 
 # Autenticación de Firebase (Backend SDK)
 firebase-admin>=6.5.0
+
