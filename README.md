@@ -2,9 +2,7 @@
 
 > **Control inteligente de tus finanzas personales. Gratis. Sin excusas.**
 
-FinanZ es una plataforma de gestión financiera personal construida con **Django 5** y principios
-de arquitectura limpia. Nace para combatir la fragmentación financiera y ofrecer un tutor
-financiero activo mediante alertas preventivas inteligentes.
+FinanZ es una plataforma de gestión financiera personal construida con una arquitectura cliente-servidor desacoplada, combinando **React 19 + TypeScript** en el frontend y **Python 3.12 + Django 5** en el backend. Nace para combatir la fragmentación financiera y ofrecer un tutor financiero activo mediante alertas preventivas inteligentes.
 
 ---
 
@@ -19,16 +17,25 @@ FinanZ_PanelFinanciero/
 │   ├── services/       → Lógica de negocio pura (Service Layer)
 │   └── requirements/   → Dependencias por entorno
 ├── frontend/
-│   ├── templates/      → HTML por módulo
-│   └── static/         → CSS, JS, Chart.js
+│   ├── src/
+│   │   ├── components/ → Componentes reutilizables
+│   │   ├── pages/      → Vistas (Dashboard, Transacciones, Presupuestos, Metas…)
+│   │   ├── services/   → Cliente HTTP (api.ts)
+│   │   ├── context/    → AuthContext (Firebase)
+│   │   └── utils/      → Helpers y utilidades
+│   └── public/         → Activos estáticos
 └── docs/mockups/       → Diseños y flujos UX
 ```
 
+---
+
 ## 🚀 Inicio Rápido (Desarrollo)
+
+### Backend (Django)
 
 ```bash
 # 1. Clonar repositorio
-git clone https://github.com/tu-usuario/FinanZ_PanelFinanciero
+git clone https://github.com/DavidRincon12/FinanZ_PanelFinanciero
 cd FinanZ_PanelFinanciero
 
 # 2. Crear y activar entorno virtual
@@ -39,15 +46,28 @@ python -m venv .venv
 # 3. Instalar dependencias de desarrollo
 pip install -r backend/requirements/local.txt
 
-# 4. Sincronizar Base de datois NeonDB
-python manage.py makemigrations
+# 4. Configurar variables de entorno
+cp .env.example .env   # Completar con tus credenciales
+
+# 5. Aplicar migraciones
+cd backend
 python manage.py migrate
 
-# 5. Correr servidor de desarrollo
+# 6. Correr servidor de desarrollo
 python manage.py runserver
 ```
 
-Accede a: `http://localhost:8000`  |  Admin: `http://localhost:8000/admin`
+Accede a: `http://localhost:8000` | Admin: `http://localhost:8000/admin`
+
+### Frontend (React + Vite)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Accede a: `http://localhost:5173`
 
 ---
 
@@ -55,9 +75,9 @@ Accede a: `http://localhost:8000`  |  Admin: `http://localhost:8000/admin`
 
 | Archivo | Uso |
 |---|---|
-| `config/settings/base.py` | Ajustes comunes (INSTALLED_APPS, TEMPLATES, AUTH_USER_MODEL) |
-| `config/settings/local.py` | Desarrollo (DEBUG=True, SQLite, console email) |
-| `config/settings/production.py` | Producción (Neon Postgres, Whitenoise, HTTPS) |
+| `config/settings/base.py` | Ajustes comunes (INSTALLED_APPS, AUTH_USER_MODEL) |
+| `config/settings/local.py` | Desarrollo (DEBUG=True, SQLite, consola de email) |
+| `config/settings/production.py` | Producción (Neon PostgreSQL, Whitenoise, HTTPS) |
 
 La variable `DJANGO_SETTINGS_MODULE` en `.env` controla el entorno activo.
 
@@ -67,45 +87,62 @@ La variable `DJANGO_SETTINGS_MODULE` en `.env` controla el entorno activo.
 
 | Capa | Tecnología |
 |---|---|
-| Backend | Python 3.12 + Django 5.x |
-| Base de Datos (dev) | SQLite |
-| Base de Datos (prod) | PostgreSQL (Neon Serverless) |
-| Hosting | Render (free tier) |
-| Estáticos | Whitenoise + Cloudflare |
-| Autenticación | Google Auth (Firebase) |
-| Email | Brevo SMTP (300/día gratis) |
-| Gráficos | Chart.js |
-| Estilos | Bootstrap 5 |
+| **Frontend** | React 19 + TypeScript |
+| **Build Tool** | Vite |
+| **Routing** | React Router DOM v7 |
+| **Estilos** | Tailwind CSS v4 |
+| **Animaciones** | Framer Motion |
+| **Gráficos** | Recharts |
+| **Backend** | Python 3.12 + Django 5.x |
+| **API REST** | Django REST Framework |
+| **Base de Datos (dev)** | SQLite |
+| **Base de Datos (prod)** | PostgreSQL (Neon Serverless) |
+| **Autenticación** | Firebase Authentication (Google OAuth 2.0) |
+| **Servidor WSGI** | Gunicorn |
+| **Estáticos (prod)** | Whitenoise |
+| **Hosting Frontend** | Vercel |
+| **Hosting Backend** | Render |
 
 ---
 
 ## 📦 Módulos
 
-- **`apps/users`** – Autenticación, `CustomUser` con perfil financiero
+- **`apps/users`** – Autenticación con Firebase, `CustomUser` con perfil financiero
 - **`apps/finance`** – Transacciones, categorías, balance dinámico
-- **`apps/budget`** – Presupuestos mensuales + alertas 80%/100%
+- **`apps/budget`** – Presupuestos mensuales + alertas al 80 % y 100 % de consumo
 - **`apps/goals`** – Metas de ahorro con seguimiento de progreso
+
+---
+
+## 🌐 Despliegue
+
+| Servicio | Plataforma | Descripción |
+|---|---|---|
+| **Frontend** | Vercel | Despliegue continuo desde `main`, CDN global. El `vercel.json` redirige las peticiones `/api/*`, `/finance/*`, `/budget/*`, `/goals/*` al backend en Render |
+| **Backend** | Render | Configurado via `render.yaml` con Python 3.12, Gunicorn y variables de entorno seguras |
+| **Base de Datos** | Neon PostgreSQL | Conexión serverless con `sslmode=require` vía `DATABASE_URL` |
 
 ---
 
 ## 🔒 Seguridad
 
-- Variables sensibles en `.env` (nunca en Git)
-- Consultas via ORM (anti-inyección SQL)
+- Variables sensibles en `.env` (nunca en Git, excluidas por `.gitignore`)
+- Consultas vía ORM de Django (anti-inyección SQL)
+- CORS configurado explícitamente con `django-cors-headers`
 - HTTPS forzado en producción
-- Políticas de contraseña fuertes
-- Expiración de sesión configurable
+- Credenciales de Firebase gestionadas como variables de entorno en Render
+- Rutas del frontend protegidas con `ProtectedRoute` (requieren sesión activa)
 
 ---
 
-## 📋 Plan de Fases
+## 📋 Estado del Proyecto
 
-- [x] **Fase 1** – Arquitectura Base y Entorno
-- [ ] **Fase 2** – Autenticación Social y Base de Datos Externa en la Nube
-- [ ] **Fase 3** – El Motor de Transacciones (Core MVP)
-- [ ] **Fase 4** – Inteligencia de Presupuestos y Metas
-- [ ] **Fase 5** – Automatización de Alertas y Dashboard Visual
-- [ ] **Fase 6** – Despliegue a Producción (Costo Cero)
+- [x] **Fase 1** – Arquitectura base y entorno multi-entorno
+- [x] **Fase 2** – Autenticación con Firebase y base de datos en la nube (Neon)
+- [x] **Fase 3** – Motor de transacciones (ingresos, egresos, categorías, balance)
+- [x] **Fase 4** – Presupuestos con alertas y metas de ahorro con seguimiento
+- [x] **Fase 5** – Dashboard visual con gráficos (Recharts) y perfil de usuario
+- [x] **Fase 6** – Despliegue a producción (Vercel + Render + Neon, costo cero)
 
 ---
 
