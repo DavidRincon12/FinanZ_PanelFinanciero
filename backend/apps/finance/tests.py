@@ -120,3 +120,49 @@ class TransactionFilterTestCase(TestCase):
         data = response.json()
         # Fallback to None returns all transactions of user
         self.assertEqual(len(data), 3)
+
+
+class TransactionBulkCreateTestCase(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="testuser", email="test@test.com", password="pass")
+        self.cat1 = Category.objects.create(name="Alimentación", owner=self.user)
+        
+        self.client = Client()
+        self.client.login(username="testuser", password="pass")
+
+    def test_bulk_create_atomic(self):
+        # Start with 0 transactions
+        self.assertEqual(Transaction.objects.filter(user=self.user).count(), 0)
+        
+        payload = [
+            {"amount": 100, "transaction_type": "expense", "description": "Row 1", "date": "2026-06-01"},
+            {"amount": -50, "transaction_type": "expense", "description": "Invalid Row", "date": "invalid-date"}
+        ]
+        url = reverse("finance:transaction_bulk_create_api")
+        response = self.client.post(url, payload, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Transaction.objects.filter(user=self.user).count(), 0) # remains original count, no partial inserts
+
+    def test_bulk_create_success(self):
+        self.assertEqual(Transaction.objects.filter(user=self.user).count(), 0)
+        
+        payload = [
+            {"amount": "100.00", "transaction_type": "expense", "description": "Row 1", "date": "2026-06-01", "category_id": self.cat1.id},
+            {"amount": "50.00", "transaction_type": "income", "description": "Row 2", "date": "2026-06-02"}
+        ]
+        url = reverse("finance:transaction_bulk_create_api")
+        response = self.client.post(url, payload, content_type="application/json")
+        self.assertEqual(response.status_code, 201)
+        
+        # Verify both transactions were created and belong to the correct user
+        self.assertEqual(Transaction.objects.filter(user=self.user).count(), 2)
+        
+        tx1 = Transaction.objects.get(description="Row 1", user=self.user)
+        self.assertEqual(tx1.amount, 100)
+        self.assertEqual(tx1.category, self.cat1)
+        
+        tx2 = Transaction.objects.get(description="Row 2", user=self.user)
+        self.assertEqual(tx2.amount, 50)
+        self.assertIsNone(tx2.category)
+

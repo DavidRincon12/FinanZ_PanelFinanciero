@@ -296,3 +296,16 @@ def total_balance_api(request):
         "month_income": float(month_income),
         "month_expense": float(month_expense),
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def transaction_bulk_create_api(request):
+    """Crea múltiples transacciones de forma masiva y atómica."""
+    try:
+        transactions = finance_service.transactions_bulk_create(user=request.user, data_list=request.data)
+        serializer = TransactionSerializer(transactions, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+

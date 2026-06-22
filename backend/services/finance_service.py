@@ -203,3 +203,51 @@ def category_delete(instance: Category) -> None:
     instance.is_active = False
     instance.save()
     logger.info("Category deleted (deactivated): id=%s", instance.pk)
+
+
+def transactions_bulk_create(user: "CustomUser", data_list: list[dict]) -> list[Transaction]:
+    """
+    Crea múltiples transacciones en un solo bloque atómico.
+    Valida montos, tipos, categorías y formatos de fecha.
+    """
+    from django.utils.dateparse import parse_date
+
+    transactions_to_create = []
+    with db_transaction.atomic():
+        for item in data_list:
+            amount = _parse_amount(item.get("amount"))
+            transaction_type = _validate_transaction_type(item.get("transaction_type"))
+
+            category_id = item.get("category_id")
+            category = None
+            if category_id:
+                try:
+                    category = Category.objects.filter(
+                        models.Q(owner=user) | models.Q(owner__isnull=True)
+                    ).get(pk=category_id)
+                except Category.DoesNotExist:
+                    raise ValueError(f"La categoría con ID {category_id} no existe.")
+
+            raw_date = item.get("date")
+            if raw_date:
+                date = parse_date(str(raw_date))
+                if not date:
+                    raise ValueError(f"Formato de fecha inválido: '{raw_date}'")
+            else:
+                date = timezone.now().date()
+
+            tx = Transaction(
+                user=user,
+                amount=amount,
+                transaction_type=transaction_type,
+                category=category,
+                description=item.get("description", "").strip(),
+                date=date,
+            )
+            tx.full_clean()
+            transactions_to_create.append(tx)
+
+        created_transactions = Transaction.objects.bulk_create(transactions_to_create)
+        logger.info("Bulk created %d transactions for user %s", len(created_transactions), user.pk)
+        return created_transactions
+

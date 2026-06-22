@@ -24,4 +24,6 @@ urlpatterns = [
     path("api/balance/", views.balance_api, name="balance_api"),
     path("api/expenses-by-category/", views.expenses_by_category_api, name="expenses_by_category_api"),
     path("api/total-balance/", views.total_balance_api, name="total_balance_api"),
+    path("api/transactions/bulk/", views.transaction_bulk_create_api, name="transaction_bulk_create_api"),
 ]
+
