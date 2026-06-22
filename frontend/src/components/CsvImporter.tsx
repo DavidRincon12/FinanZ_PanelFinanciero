@@ -38,16 +38,16 @@ const parseCsv = (text: string): string[][] => {
     let current = '';
     for (let i = 0; i < row.length; i++) {
       const char = row[i];
-      if (char === '"' || char === "'") {
+      if (char === '"') {
         insideQuotes = !insideQuotes;
       } else if ((char === ',' || char === ';') && !insideQuotes) {
-        cols.push(current.replace(/^["']|["']$/g, '').trim());
+        cols.push(current.replace(/^"|"$/g, '').trim());
         current = '';
       } else {
         current += char;
       }
     }
-    cols.push(current.replace(/^["']|["']$/g, '').trim());
+    cols.push(current.replace(/^"|"$/g, '').trim());
     lines.push(cols);
   }
   return lines;
@@ -86,11 +86,11 @@ const normalizeDate = (val: string): string => {
       const y = parts[2];
       return `${y}-${m}-${d}`;
     }
-    if (parts[2].length === 2) {
+    if (parts[2].length <= 2) {
       const d = parts[0].padStart(2, '0');
       const m = parts[1].padStart(2, '0');
       const yy = parseInt(parts[2]);
-      const y = yy <= 50 ? `20${parts[2]}` : `19${parts[2]}`;
+      const y = yy <= 50 ? 2000 + yy : 1900 + yy;
       return `${y}-${m}-${d}`;
     }
   }
@@ -98,7 +98,10 @@ const normalizeDate = (val: string): string => {
   try {
     const d = new Date(clean);
     if (!isNaN(d.getTime())) {
-      return d.toISOString().split('T')[0];
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
   } catch (e) {}
   
