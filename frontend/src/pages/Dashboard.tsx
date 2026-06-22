@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
 import SurveyModal from '../components/SurveyModal';
 import { AlertCircle, Wallet, TrendingUp, TrendingDown, Target, ArrowRight, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import api from '../services/api';
-import type { Transaction, SavingsGoal, AppNotification } from '../services/api';
+import type { Transaction, SavingsGoal, AppNotification, Budget } from '../services/api';
 import { getCategoryStyle } from '../utils/categoryHelper';
 import { fmtMoney } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
@@ -31,8 +32,63 @@ const TransactionRow = ({ date, category, categoryIcon, description, amount, typ
   );
 };
 
+function getFinancialTips(activity: string | null | undefined, tastes: string | undefined): { icon: string; title: string; tip: string }[] {
+  const tips: { icon: string; title: string; tip: string }[] = [];
+
+  switch (activity) {
+    case 'student':
+      tips.push(
+        { icon: '🎓', title: 'Presupuesto estudiantil', tip: 'Administra tu dinero limitado priorizando transporte y alimentación. Aprovecha descuentos estudiantiles y evita suscripciones innecesarias.' },
+        { icon: '💰', title: 'Ahorra en lo cotidiano', tip: 'Cocina en casa, usa transporte público y busca ofertas para estudiantes. Cada peso ahorrado cuenta para tu futuro.' }
+      );
+      break;
+    case 'employee':
+      tips.push(
+        { icon: '🏦', title: 'Págate a ti primero', tip: 'Automatiza tus ahorros destinando al menos un 10% de tu salario apenas lo recibas. Aprovecha los beneficios que ofrece tu empleador.' },
+        { icon: '📈', title: 'Invierte un porcentaje', tip: 'Considera invertir una parte de tu salario mensualmente. El interés compuesto es tu mejor aliado a largo plazo.' }
+      );
+      break;
+    case 'freelancer':
+      tips.push(
+        { icon: '📋', title: 'Separa tus finanzas', tip: 'Mantén cuentas separadas para gastos personales y de negocio. Reserva un porcentaje de cada ingreso para impuestos.' },
+        { icon: '🛡️', title: 'Fondo de emergencia', tip: 'Como freelancer, tus ingresos pueden variar. Construye un fondo de emergencia que cubra al menos 6 meses de gastos.' }
+      );
+      break;
+    case 'unemployed':
+      tips.push(
+        { icon: '🎯', title: 'Prioriza lo esencial', tip: 'Enfócate en cubrir gastos esenciales: vivienda, alimentación y salud. Usa recursos gratuitos disponibles en tu comunidad.' },
+        { icon: '📝', title: 'Registra cada gasto', tip: 'Lleva un control meticuloso de cada peso que gastas. Esto te ayudará a identificar dónde puedes recortar y optimizar.' }
+      );
+      break;
+    case 'retired':
+      tips.push(
+        { icon: '🛡️', title: 'Protege tus ahorros', tip: 'Protege tu patrimonio de la inflación con inversiones seguras. Evita inversiones de alto riesgo que puedan comprometer tu tranquilidad.' },
+        { icon: '🏥', title: 'Presupuesto de salud', tip: 'Destina una parte importante de tu presupuesto a gastos de salud. Prevenir es más económico que curar.' }
+      );
+      break;
+    default:
+      tips.push(
+        { icon: '💡', title: 'Empieza a ahorrar', tip: 'El primer paso para una buena salud financiera es gastar menos de lo que ganas. Establece metas claras de ahorro.' }
+      );
+  }
+
+  const tastesStr = tastes || '';
+  if (tastesStr.includes('Restaurantes y comida')) {
+    tips.push({ icon: '🍳', title: 'Planifica tus comidas', tip: 'Cocinar en casa puede ahorrarte hasta un 60% en alimentación. Planifica un menú semanal y haz compras inteligentes.' });
+  }
+  if (tastesStr.includes('Tecnología')) {
+    tips.push({ icon: '💻', title: 'Compras tech inteligentes', tip: 'Compara precios antes de comprar gadgets y espera épocas de ofertas. A menudo la versión anterior tiene la mejor relación calidad-precio.' });
+  }
+  if (tastesStr.includes('Viajes y turismo')) {
+    tips.push({ icon: '✈️', title: 'Fondo de viajes', tip: 'Crea un fondo exclusivo para viajes. Ahorra un monto fijo mensual y podrás viajar sin afectar tu presupuesto regular.' });
+  }
+
+  return tips.slice(0, 3);
+}
+
 const Dashboard: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalBalance, setTotalBalance]   = useState<number | null>(null);
   const [monthIncome, setMonthIncome]     = useState<number>(0);
@@ -44,6 +100,7 @@ const Dashboard: React.FC = () => {
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [surveyToast, setSurveyToast] = useState(false);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
 
   const handleSurveyComplete = async (data: { personal_activity: string; tastes: string; monthly_income: number }) => {
     try {
@@ -69,13 +126,14 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [txs, balanceRes, expensesRes, balanceSummary, goalsRes, alertsRes] = await Promise.all([
+        const [txs, balanceRes, expensesRes, balanceSummary, goalsRes, alertsRes, budgetsRes] = await Promise.all([
           api.getTransactions(),
           api.getBalance(),
           api.getExpensesByCategory(),
           api.getTotalBalance(),
           api.getGoals(),
-          api.getNotifications()
+          api.getNotifications(),
+          api.getBudgets()
         ]);
 
         setTransactions(txs.slice(0, 5));
@@ -84,6 +142,7 @@ const Dashboard: React.FC = () => {
         setMonthExpense(balanceSummary.month_expense);
         setBalanceData(balanceRes.data || []);
         setGoals(goalsRes);
+        setBudgets(budgetsRes);
         // Filtramos notificaciones no leídas y de tipo alerta
         setAlerts(alertsRes.filter(n => !n.is_read && (n.type === 'warning' || n.type === 'critical')));
         setIsLoadingAlerts(false);
@@ -183,6 +242,67 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Tips Section - shown only if survey completed */}
+          {user?.is_survey_completed && (() => {
+            const tips = getFinancialTips(user.personal_activity, user.tastes);
+            return tips.length > 0 ? (
+              <div className="col-span-12">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <span className="text-xl">💡</span> Consejos para ti
+                </h3>
+                <div className="grid grid-cols-12 gap-4">
+                  {tips.map((tip, idx) => (
+                    <div key={idx} className="col-span-12 lg:col-span-4">
+                      <div className="bg-white border border-slate-100 rounded-2xl p-5 h-full shadow-sm hover:shadow-md transition-shadow duration-300" style={{ borderLeft: '4px solid #4D5DFB' }}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="text-2xl">{tip.icon}</span>
+                          <h4 className="font-bold text-slate-800 text-sm">{tip.title}</h4>
+                        </div>
+                        <p className="text-slate-500 text-sm leading-relaxed">{tip.tip}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
+
+          {/* 50/30/20 Budget Suggestion Banner */}
+          {user?.is_survey_completed && (user?.monthly_income ?? 0) > 0 && budgets.length === 0 && (
+            <div className="col-span-12">
+              <div className="rounded-2xl p-6 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #4D5DFB, #818CF8)' }}>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <span className="text-xl">📊</span> Presupuesto Sugerido (Regla 50/30/20)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                  <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <p className="text-white/80 text-xs font-semibold uppercase tracking-wider mb-1">Necesidades</p>
+                    <p className="text-2xl font-black">50%</p>
+                    <p className="text-white/90 font-bold text-sm mt-1">{fmtMoney((user?.monthly_income ?? 0) * 0.50)}</p>
+                  </div>
+                  <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <p className="text-white/80 text-xs font-semibold uppercase tracking-wider mb-1">Gustos</p>
+                    <p className="text-2xl font-black">30%</p>
+                    <p className="text-white/90 font-bold text-sm mt-1">{fmtMoney((user?.monthly_income ?? 0) * 0.30)}</p>
+                  </div>
+                  <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <p className="text-white/80 text-xs font-semibold uppercase tracking-wider mb-1">Ahorro</p>
+                    <p className="text-2xl font-black">20%</p>
+                    <p className="text-white/90 font-bold text-sm mt-1">{fmtMoney((user?.monthly_income ?? 0) * 0.20)}</p>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <button
+                    onClick={() => navigate('/budgets')}
+                    className="bg-white text-[#4D5DFB] font-bold px-6 py-2.5 rounded-xl hover:bg-white/90 transition-colors duration-200 text-sm shadow-md"
+                  >
+                    Ir a Presupuestos →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Row 2: Charts */}
           <div className="col-span-12 lg:col-span-8">
