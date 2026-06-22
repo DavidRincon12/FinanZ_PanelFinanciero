@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
 import { Plus, ArrowDownLeft, ArrowUpRight, Loader2, Tag, Pencil, Trash2, Search, X } from 'lucide-react';
@@ -89,6 +89,7 @@ const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const requestCountRef = useRef(0);
 
   // Filters State
   const [search, setSearch] = useState('');
@@ -117,6 +118,7 @@ const Transactions: React.FC = () => {
 
   const fetchTransactions = async () => {
     setIsLoading(true);
+    const currentRequest = ++requestCountRef.current;
     try {
       const data = await api.getTransactions({
         search: debouncedSearch,
@@ -125,11 +127,15 @@ const Transactions: React.FC = () => {
         start_date: startDate,
         end_date: endDate,
       });
-      setTransactions(data);
+      if (currentRequest === requestCountRef.current) {
+        setTransactions(data);
+      }
     } catch (err) {
       console.error('Error fetching transactions:', err);
     } finally {
-      setIsLoading(false);
+      if (currentRequest === requestCountRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -323,7 +329,7 @@ const Transactions: React.FC = () => {
                       </button>
                     ) : (
                       <div className="w-full text-center py-2 text-xs text-slate-400 font-medium select-none">
-                        Filtros activos
+                        Búsqueda y filtros
                       </div>
                     )}
                   </div>
