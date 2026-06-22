@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Views – finance
 Vistas de transacciones usando la capa de servicios.
@@ -114,6 +115,19 @@ def transaction_list_api(request):
             category_id = int(category_id)
         except ValueError:
             category_id = None
+
+    from datetime import datetime
+    if start_date:
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+        except ValueError:
+            start_date = None
+
+    if end_date:
+        try:
+            datetime.strptime(end_date, '%Y-%m-%d')
+        except ValueError:
+            end_date = None
 
     transactions = finance_selectors.get_user_transactions(
         user=request.user,

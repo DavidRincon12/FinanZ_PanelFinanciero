@@ -1,49 +1,37 @@
-# Task 1 Report: Depuración Técnica (Consola)
+# Task 1 Report: Backend Selectors & URL Filtering
 
-## Summary of Changes
+## Status
+- **Status**: Completed successfully.
+- **Commit**: `0b34e23` ("feat: add server-side search and filters to transactions endpoint")
 
-All requirements from Task 1 have been successfully implemented and verified. Below is the detailed log of the changes made:
+## Implementation Details
+1. **Selector Changes**:
+   - Modified `get_user_transactions` in [finance_selectors.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/services/finance_selectors.py) to accept optional filter/search arguments: `search`, `category_id`, `transaction_type`, `start_date`, and `end_date`.
+   - Applied these arguments conditionally using standard Django queryset filters.
+2. **API View Changes**:
+   - Updated the `transaction_list_api` endpoint in [views.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/finance/views.py).
+   - Extracted optional query parameters from `request.query_params` and passed them safely (with numeric conversion handling for `category_id`) to the `get_user_transactions` selector.
+3. **Tests**:
+   - Created the [tests.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/finance/tests.py) file inside `apps/finance/` using Django's standard `TestCase` class.
+   - Wrote 5 tests assessing search, category, type, date range, and combined queries for both selectors and the HTTP API endpoints.
 
-### 1. Tailwind CSS v4 Native Integration
-- Installed `@tailwindcss/vite` as a devDependency in `frontend/package.json`.
-- Configured `frontend/vite.config.ts` to import and register the `tailwindcss` plugin.
-- Modified `frontend/src/index.css` to import Tailwind v4 CSS cleanly (`@import "tailwindcss";`) and defined the custom theme color variables under a `@theme` directive.
-- Swapped the order of `@import` directives in `frontend/src/index.css` so that the Google Fonts `@import` statement resides at the absolute top of the file. This successfully resolved the CSS optimizer warnings (`@import rules must precede all rules aside from @charset and @layer statements`).
-- Removed the legacy Tailwind CDN script and config scripts from `frontend/index.html`.
+## Test Execution Summary
+- **Command Run**: `python manage.py test --keepdb --noinput`
+- **Result**: `OK` (9 tests ran, all passed)
+- **Time Elapsed**: ~54 seconds
 
-### 2. Autocomplete in Passwords
-- Added `autoComplete="current-password"` to the password input field in `frontend/src/pages/Login.tsx`.
-- Added `autoComplete="new-password"` to the password and confirm password inputs in `frontend/src/pages/Register.tsx`.
+## Concerns / Notes
+- None. The backend filters are robust and safe.
 
-### 3. Google GSI Duplication Fix
-- Extended the global `Window` interface in `frontend/src/pages/Login.tsx` with a `googleInitialized?: boolean` field.
-- Protected the call to `window.google.accounts.id.initialize` with an check for `!window.googleInitialized`.
-- Set `window.googleInitialized = true` immediately after the first successful initialization to avoid double-registration errors in the console.
+## Post-Review Fixes Applied
+1. **Views date validation**: Added logic to `transaction_list_api` in `views.py` that validates `start_date` and `end_date` using `datetime.strptime(val, '%Y-%m-%d')`. Failing to parse falls back to `None` to prevent 500 server errors on queryset evaluation.
+2. **Decimal construction in tests**: Updated `setUp` transaction instantiation amounts in `tests.py` to use strings (e.g. `"10.00"`) instead of raw float numbers, avoiding float conversion errors.
+3. **Encoding fixes**:
+   - Added `# -*- coding: utf-8 -*-` headers at the top of `views.py`, `finance_selectors.py`, and `tests.py` to ensure proper source code interpretation.
+   - Replaced mathematical symbol `Σ` with standard `sum` in `finance_selectors.py` calculate_balance docstring.
+4. **Additional Tests**: Added `test_filter_by_invalid_date_format` to verify fallback handling on invalid date parameters.
 
-### 4. Recharts Dimension Warnings
-- Located both `<ResponsiveContainer>` tags in `frontend/src/pages/Dashboard.tsx` (for the balance area chart and the expenses category pie chart).
-- Added the props `minWidth={0}` and `minHeight={0}` to both instances to suppress Recharts' width/height 0px dimension warnings.
-
----
-
-## Verification & Build Status
-- Ran `npm run build` (via `cmd /c` to bypass PowerShell script execution restrictions) inside the `frontend/` directory.
-- The build succeeded with **no errors and no warnings**:
-  ```text
-  vite v8.0.12 building client environment for production...
-  transforming...✓ 2732 modules transformed.
-  rendering chunks...
-  computing gzip size...
-  dist/index.html                   0.47 kB │ gzip:   0.30 kB
-  dist/assets/index-BEdUeiCk.css   45.98 kB │ gzip:   9.20 kB
-  dist/assets/index-zmT68BkR.js   952.73 kB │ gzip: 279.91 kB
-
-  ✓ built in 1.14s
-  ```
-
----
-
-## Commits
-All modifications (including code changes and this task report) have been staged and committed in the following Git commit:
-- **Commit SHA**: `e7df4deee5e73c000e6d14ab8bb04c123f35cc66`
-- **Commit Message**: `fix: task 1 console errors, configure tailwind v4, password autocompletes, google GSI and recharts dimension warnings`
+### Post-Review Test Execution Summary
+- **Command Run**: `cmd /c "set DATABASE_URL=sqlite:///db_test.sqlite3 && .venv\Scripts\python backend/manage.py test apps.finance --settings=config.settings.local"`
+- **Result**: `OK` (6 tests ran, all passed)
+- **Time Elapsed**: ~8.7 seconds

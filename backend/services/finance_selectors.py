@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Selectors – finance_selectors
 Funciones de solo lectura para recuperar y agregar datos financieros.
@@ -45,7 +46,7 @@ def get_user_transactions(
 def calculate_balance(user: "CustomUser") -> Decimal:
     """
     Calcula el balance actual del usuario:
-      balance = Σ(ingresos) - Σ(egresos)
+      balance = sum(ingresos) - sum(egresos)
     """
     aggregation = Transaction.objects.filter(user=user).aggregate(
         total_income=Sum("amount", filter=Q(transaction_type=Transaction.INCOME)),

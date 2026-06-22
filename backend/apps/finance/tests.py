@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -15,7 +16,7 @@ class TransactionFilterTestCase(TestCase):
         # Create some transactions
         self.tx1 = Transaction.objects.create(
             user=self.user,
-            amount=10.00,
+            amount="10.00",
             transaction_type=Transaction.EXPENSE,
             category=self.cat1,
             description="Almuerzo de trabajo",
@@ -23,7 +24,7 @@ class TransactionFilterTestCase(TestCase):
         )
         self.tx2 = Transaction.objects.create(
             user=self.user,
-            amount=20.00,
+            amount="20.00",
             transaction_type=Transaction.EXPENSE,
             category=self.cat2,
             description="Uber al aeropuerto",
@@ -31,7 +32,7 @@ class TransactionFilterTestCase(TestCase):
         )
         self.tx3 = Transaction.objects.create(
             user=self.user,
-            amount=100.00,
+            amount="100.00",
             transaction_type=Transaction.INCOME,
             category=self.cat1,
             description="Reembolso de viáticos",
@@ -111,3 +112,11 @@ class TransactionFilterTestCase(TestCase):
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["description"], "Almuerzo de trabajo")
+
+    def test_filter_by_invalid_date_format(self):
+        # API should clean invalid date formats and not crash
+        response = self.client.get(self.api_url, {"start_date": "invalid-date", "end_date": "2026-13-45"})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        # Fallback to None returns all transactions of user
+        self.assertEqual(len(data), 3)
