@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
-import { Plus, ArrowDownLeft, ArrowUpRight, Loader2, Tag, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, ArrowDownLeft, ArrowUpRight, Loader2, Tag, Pencil, Trash2, Search, X, Upload } from 'lucide-react';
 import TransactionForm from '../components/TransactionForm';
 import CategoryForm from '../components/CategoryForm';
 import api from '../services/api';
@@ -9,6 +9,7 @@ import type { Transaction } from '../services/api';
 import { getCategoryStyle } from '../utils/categoryHelper';
 import { fmtMoney } from '../utils/format';
 import ConfirmModal from '../components/ConfirmModal';
+import CsvImporter from '../components/CsvImporter';
 
 interface TransactionItemProps {
   name: string;
@@ -86,6 +87,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
 const Transactions: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showImporter, setShowImporter] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -206,6 +208,12 @@ const Transactions: React.FC = () => {
                     className="flex items-center gap-2 bg-slate-100 text-[#475569] px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#CBD5E1] transition-all"
                   >
                     <Tag size={18} /> Nueva Categoría
+                  </button>
+                  <button 
+                    onClick={() => setShowImporter(true)}
+                    className="flex items-center gap-2 bg-indigo-50 text-[#4D5DFB] px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all"
+                  >
+                    <Upload size={18} /> Importar CSV
                   </button>
                   <button 
                     onClick={handleOpenCreate}
@@ -375,6 +383,16 @@ const Transactions: React.FC = () => {
           cancelText="Cancelar"
           type="danger"
         />
+
+        {showImporter && (
+          <CsvImporter 
+            onClose={() => setShowImporter(false)}
+            onSuccess={() => {
+               setShowImporter(false);
+               fetchTransactions();
+            }}
+          />
+        )}
       </AnimatedPage>
     </Layout>
   );

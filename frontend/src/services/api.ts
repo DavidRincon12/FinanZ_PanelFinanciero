@@ -130,6 +130,22 @@ const api = {
     return res.json();
   },
 
+  createBulkTransactions: async (transactions: any[]): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/transactions/bulk/`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(transactions),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || errData.detail || 'Error uploading transactions');
+    }
+    return res.json();
+  },
+
   updateTransaction: async (id: number, data: any): Promise<Transaction> => {
     const res = await fetch(`${API_BASE_URL}/finance/api/transactions/${id}/update/`, {
       method: 'POST',
