@@ -1,13 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, AlertTriangle, XCircle, Info } from 'lucide-react';
 import api from '../services/api';
-import type { Budget } from '../services/api';
+import type { Budget, AppNotification } from '../services/api';
 import { getCategoryStyle } from '../utils/categoryHelper';
 import { fmtMoney } from '../utils/format';
 import BudgetForm from '../components/BudgetForm';
 import ConfirmModal from '../components/ConfirmModal';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, Cell,
+} from 'recharts';
 
 interface BudgetCardProps {
   category: string;
@@ -93,12 +97,50 @@ const BudgetCard: React.FC<BudgetCardProps> = ({
   );
 };
 
+/* ------------------------------------------------------------------ */
+/*  Custom Tooltip for the BarChart                                    */
+/* ------------------------------------------------------------------ */
+const ChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-lg p-3 text-sm">
+      <p className="font-semibold text-[#1E293B] mb-1">{label}</p>
+      {payload.map((entry: any) => (
+        <p key={entry.name} style={{ color: entry.color }}>
+          {entry.name}: {fmtMoney(entry.value)}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Helper – notification icon & color                                 */
+/* ------------------------------------------------------------------ */
+const alertMeta = (type: string) => {
+  switch (type) {
+    case 'critical':
+      return { icon: <XCircle size={18} />, bg: 'bg-red-50', text: 'text-red-600', badge: 'bg-red-100 text-red-700' };
+    case 'warning':
+      return { icon: <AlertTriangle size={18} />, bg: 'bg-amber-50', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' };
+    default:
+      return { icon: <Info size={18} />, bg: 'bg-blue-50', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700' };
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/*  Main Component                                                     */
+/* ------------------------------------------------------------------ */
 const Budgets: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+
+  // New state for history chart + alerts
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const fetchBudgets = async () => {
     try {
@@ -111,8 +153,28 @@ const Budgets: React.FC = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const data = await api.getBudgetHistory();
+      setHistoryData(data);
+    } catch (err) {
+      console.error('Error fetching budget history:', err);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const data = await api.getNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
   useEffect(() => {
     fetchBudgets();
+    fetchHistory();
+    fetchNotifications();
   }, []);
 
   const handleEdit = (budget: Budget) => {
@@ -137,6 +199,56 @@ const Budgets: React.FC = () => {
       setDeleteTarget(null);
     }
   };
+
+  /* ---- Motivational comparison logic ---- */
+  const motivationalMessage = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth <= 0) {
+      prevMonth = 12;
+      prevYear -= 1;
+    }
+
+    const isCurrentMonth = (n: AppNotification) => {
+      const d = new Date(n.created_at);
+      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
+    };
+    const isPrevMonth = (n: AppNotification) => {
+      const d = new Date(n.created_at);
+      return d.getMonth() + 1 === prevMonth && d.getFullYear() === prevYear;
+    };
+    const isAlert = (n: AppNotification) => n.type === 'warning' || n.type === 'critical';
+
+    const currentAlerts = notifications.filter(n => isAlert(n) && isCurrentMonth(n)).length;
+    const prevAlerts = notifications.filter(n => isAlert(n) && isPrevMonth(n)).length;
+    const diff = Math.abs(currentAlerts - prevAlerts);
+
+    if (currentAlerts < prevAlerts) {
+      return {
+        type: 'success' as const,
+        text: `¡Excelente progreso! 🎉 Este mes tienes ${diff} alerta${diff !== 1 ? 's' : ''} menos que el mes pasado.`,
+      };
+    } else if (currentAlerts > prevAlerts) {
+      return {
+        type: 'warning' as const,
+        text: `⚠️ Atención: Este mes tienes ${diff} alerta${diff !== 1 ? 's' : ''} más que el mes anterior. Revisa tus gastos.`,
+      };
+    }
+    return {
+      type: 'neutral' as const,
+      text: 'Tu comportamiento financiero se mantiene estable respecto al mes pasado.',
+    };
+  }, [notifications]);
+
+  /* ---- Sorted notifications (newest first) ---- */
+  const sortedNotifications = useMemo(
+    () => [...notifications].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [notifications],
+  );
 
   return (
     <Layout title="Presupuestos">
@@ -189,6 +301,82 @@ const Budgets: React.FC = () => {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ===== Historical Spending Chart ===== */}
+          {historyData.length > 0 && (
+            <div className="card !p-6 mt-8 bg-white border border-[#E2E8F0] shadow-sm rounded-2xl">
+              <h3 className="text-lg font-bold text-[#1E293B] mb-4">📊 Historial de Gastos vs Presupuesto</h3>
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <BarChart data={historyData} barGap={4} barCategoryGap="20%">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} />
+                    <YAxis tick={{ fontSize: 12, fill: '#64748B' }} tickFormatter={(v: number) => fmtMoney(v)} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="total_budgeted" name="Presupuestado" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total_spent" name="Gastado" radius={[4, 4, 0, 0]}>
+                      {historyData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.total_spent > entry.total_budgeted ? '#EF4444' : '#10B981'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* ===== Motivational Comparison Banner ===== */}
+          {notifications.length > 0 && (
+            <div
+              className={`mt-8 p-4 rounded-xl border font-medium text-sm ${
+                motivationalMessage.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : motivationalMessage.type === 'warning'
+                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}
+            >
+              {motivationalMessage.text}
+            </div>
+          )}
+
+          {/* ===== Historical Alerts Log ===== */}
+          {sortedNotifications.length > 0 && (
+            <div className="card !p-6 mt-6 bg-white border border-[#E2E8F0] shadow-sm rounded-2xl">
+              <h3 className="text-lg font-bold text-[#1E293B] mb-4">📋 Registro de Alertas Históricas</h3>
+              <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
+                {sortedNotifications.map(notif => {
+                  const meta = alertMeta(notif.type);
+                  const dateStr = new Date(notif.created_at).toLocaleDateString('es-CO', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  });
+                  return (
+                    <div
+                      key={notif.id}
+                      className={`flex items-start gap-3 p-3 rounded-xl ${meta.bg} border border-transparent hover:border-[#E2E8F0] transition-colors`}
+                    >
+                      <div className={`mt-0.5 ${meta.text}`}>{meta.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${meta.badge}`}>
+                            {notif.type}
+                          </span>
+                          <span className="text-[11px] text-[#94A3B8]">{dateStr}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-[#1E293B] truncate">{notif.title}</p>
+                        <p className="text-xs text-[#64748B] line-clamp-2">{notif.message}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

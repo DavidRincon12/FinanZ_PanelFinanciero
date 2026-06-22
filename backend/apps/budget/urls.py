@@ -17,6 +17,7 @@ urlpatterns = [
     # API Endpoints (DRF)
     path("api/budgets/", views.budget_list_api, name="budget_list_api"),
     path("api/budgets/create/", views.budget_create_api, name="budget_create_api"),
+    path("api/budgets/history/", views.budget_history_api, name="budget_history_api"),
     path("api/budgets/<int:pk>/update/", views.budget_update_api, name="budget_update_api"),
     path("api/budgets/<int:pk>/delete/", views.budget_delete_api, name="budget_delete_api"),
     path("api/notifications/", views.notification_list_api, name="notification_list_api"),

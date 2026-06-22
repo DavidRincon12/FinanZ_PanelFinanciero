@@ -5,6 +5,7 @@ Gestión de presupuestos y notificaciones in-app.
 from datetime import date
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from rest_framework.decorators import api_view, permission_classes
@@ -14,6 +15,7 @@ from rest_framework import status
 from .serializers import BudgetSerializer, NotificationSerializer
 
 from .models import Budget, Notification
+from apps.finance.models import Transaction
 from services import budget_service
 from services.finance_selectors import get_user_categories
 
@@ -223,3 +225,55 @@ def notification_clear_all_api(request):
     """Elimina todas las notificaciones del usuario mediante API JSON."""
     Notification.objects.filter(user=request.user).delete()
     return Response({"status": "ok"})
+
+
+MONTH_LABELS = [
+    '', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+]
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def budget_history_api(request):
+    """Historial de presupuesto vs gasto de los últimos 6 meses."""
+    today = date.today()
+    result = []
+
+    for i in range(5, -1, -1):
+        # Calculate month/year going back i months
+        month = today.month - i
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+
+        # Sum all budget limits for this user/month/year
+        total_budgeted = Budget.objects.filter(
+            user=request.user, month=month, year=year,
+        ).aggregate(total=Sum('limit_amount'))['total'] or 0
+
+        # Get categories that had budgets this month
+        budget_category_ids = Budget.objects.filter(
+            user=request.user, month=month, year=year,
+        ).values_list('category_id', flat=True)
+
+        # Sum expenses in those categories
+        total_spent = Transaction.objects.filter(
+            user=request.user,
+            transaction_type=Transaction.EXPENSE,
+            date__year=year,
+            date__month=month,
+            category_id__in=budget_category_ids,
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        result.append({
+            'month': f'{MONTH_LABELS[month]} {year}',
+            'month_num': month,
+            'year': year,
+            'total_budgeted': float(total_budgeted),
+            'total_spent': float(total_spent),
+        })
+
+    return Response(result)
+

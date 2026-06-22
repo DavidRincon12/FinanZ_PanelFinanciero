@@ -225,6 +225,14 @@ const api = {
     if (!res.ok) throw new Error('Failed to delete budget');
   },
 
+  getBudgetHistory: async (): Promise<any[]> => {
+    const res = await fetch(`${API_BASE_URL}/budget/api/budgets/history/`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Failed to fetch budget history');
+    return res.json();
+  },
+
   // Notifications
   getNotifications: async (): Promise<AppNotification[]> => {
     const res = await fetch(`${API_BASE_URL}/budget/api/notifications/`, {
