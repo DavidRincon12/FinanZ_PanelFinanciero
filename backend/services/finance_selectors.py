@@ -17,9 +17,29 @@ if TYPE_CHECKING:
     from apps.users.models import CustomUser
 
 
-def get_user_transactions(user: "CustomUser"):
-    """Retorna todas las transacciones del usuario, ordenadas más recientes primero."""
-    return Transaction.objects.filter(user=user).select_related("category")
+def get_user_transactions(
+    user: "CustomUser",
+    search: str = None,
+    category_id: int = None,
+    transaction_type: str = None,
+    start_date: str = None,
+    end_date: str = None,
+):
+    """Retorna todas las transacciones del usuario, ordenadas más recientes primero, aplicando filtros opcionales."""
+    queryset = Transaction.objects.filter(user=user).select_related("category")
+    
+    if search:
+        queryset = queryset.filter(description__icontains=search)
+    if category_id:
+        queryset = queryset.filter(category_id=category_id)
+    if transaction_type:
+        queryset = queryset.filter(transaction_type=transaction_type)
+    if start_date:
+        queryset = queryset.filter(date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(date__lte=end_date)
+        
+    return queryset
 
 
 def calculate_balance(user: "CustomUser") -> Decimal:

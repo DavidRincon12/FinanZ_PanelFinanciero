@@ -103,7 +103,26 @@ def category_create(request):
 @permission_classes([IsAuthenticated])
 def transaction_list_api(request):
     """Listado de transacciones en formato JSON."""
-    transactions = finance_selectors.get_user_transactions(user=request.user)
+    search = request.query_params.get('search') or None
+    category_id = request.query_params.get('category_id') or None
+    transaction_type = request.query_params.get('transaction_type') or None
+    start_date = request.query_params.get('start_date') or None
+    end_date = request.query_params.get('end_date') or None
+    
+    if category_id:
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            category_id = None
+
+    transactions = finance_selectors.get_user_transactions(
+        user=request.user,
+        search=search,
+        category_id=category_id,
+        transaction_type=transaction_type,
+        start_date=start_date,
+        end_date=end_date
+    )
     serializer = TransactionSerializer(transactions, many=True)
     return Response(serializer.data)
 
