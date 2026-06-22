@@ -212,6 +212,26 @@ def transactions_bulk_create(user: "CustomUser", data_list: list[dict]) -> list[
     """
     from django.utils.dateparse import parse_date
 
+    # Extraer todos los IDs únicos de categoría
+    category_ids = set()
+    for item in data_list:
+        cat_id = item.get("category_id")
+        if cat_id:
+            try:
+                category_ids.add(int(cat_id))
+            except (ValueError, TypeError):
+                pass
+
+    # Consultar las categorías en una sola consulta
+    categories = {}
+    if category_ids:
+        db_categories = Category.objects.filter(
+            pk__in=category_ids
+        ).filter(
+            models.Q(owner=user) | models.Q(owner__isnull=True)
+        )
+        categories = {cat.pk: cat for cat in db_categories}
+
     transactions_to_create = []
     with db_transaction.atomic():
         for item in data_list:
@@ -222,10 +242,12 @@ def transactions_bulk_create(user: "CustomUser", data_list: list[dict]) -> list[
             category = None
             if category_id:
                 try:
-                    category = Category.objects.filter(
-                        models.Q(owner=user) | models.Q(owner__isnull=True)
-                    ).get(pk=category_id)
-                except Category.DoesNotExist:
+                    lookup_id = int(category_id)
+                except (ValueError, TypeError):
+                    lookup_id = None
+
+                category = categories.get(lookup_id) if lookup_id is not None else None
+                if not category:
                     raise ValueError(f"La categoría con ID {category_id} no existe.")
 
             raw_date = item.get("date")
