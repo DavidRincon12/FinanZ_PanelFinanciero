@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
-import { Plus, ArrowDownLeft, ArrowUpRight, Loader2, Tag, Pencil, Trash2 } from 'lucide-react';
+import { Plus, ArrowDownLeft, ArrowUpRight, Loader2, Tag, Pencil, Trash2, Search, X } from 'lucide-react';
 import TransactionForm from '../components/TransactionForm';
 import CategoryForm from '../components/CategoryForm';
 import api from '../services/api';
@@ -90,10 +90,41 @@ const Transactions: React.FC = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Filters State
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCat, setSelectedCat] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch custom categories
+  const fetchCategories = async () => {
+    try {
+      const data = await api.getCategories();
+      setCategories(data);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
   const fetchTransactions = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getTransactions();
+      const data = await api.getTransactions({
+        search: debouncedSearch,
+        category_id: selectedCat,
+        transaction_type: selectedType,
+        start_date: startDate,
+        end_date: endDate,
+      });
       setTransactions(data);
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -102,9 +133,15 @@ const Transactions: React.FC = () => {
     }
   };
 
+  // Initial fetch for categories
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Fetch transactions when filters change
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [debouncedSearch, selectedCat, selectedType, startDate, endDate]);
 
   const handleOpenCreate = () => {
     setSelectedTransaction(null);
@@ -140,6 +177,7 @@ const Transactions: React.FC = () => {
               onClose={() => setShowCategoryForm(false)}
               onSuccess={() => {
                 setShowCategoryForm(false);
+                fetchCategories();
                 fetchTransactions();
               }}
             />
@@ -172,6 +210,126 @@ const Transactions: React.FC = () => {
                 </div>
               </div>
 
+              {/* Glassmorphic Filters Panel */}
+              <div className="mb-6 p-6 rounded-2xl bg-white/60 backdrop-blur-md border border-[#E2E8F0] shadow-sm flex flex-col gap-4">
+                {/* Row 1: Search & Category */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Description Search */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Search size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar por descripción..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/80 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4D5DFB]/20 focus:border-[#4D5DFB] transition-all placeholder-slate-400"
+                    />
+                  </div>
+
+                  {/* Category select */}
+                  <div className="relative">
+                    <select
+                      value={selectedCat}
+                      onChange={(e) => setSelectedCat(e.target.value)}
+                      className="w-full pl-4 pr-10 py-2.5 bg-white/80 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4D5DFB]/20 focus:border-[#4D5DFB] transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">Todas las categorías</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Tag size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Type Tabs, Date Ranges & Reset */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                  {/* Type Tabs */}
+                  <div className="lg:col-span-4 flex bg-slate-100/80 p-1 rounded-xl">
+                    <button
+                      onClick={() => setSelectedType('')}
+                      className={`flex-1 text-center py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                        selectedType === ''
+                          ? 'bg-white text-[#1E293B] shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      onClick={() => setSelectedType('income')}
+                      className={`flex-1 text-center py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                        selectedType === 'income'
+                          ? 'bg-white text-emerald-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Ingresos
+                    </button>
+                    <button
+                      onClick={() => setSelectedType('expense')}
+                      className={`flex-1 text-center py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                        selectedType === 'expense'
+                          ? 'bg-white text-rose-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Gastos
+                    </button>
+                  </div>
+
+                  {/* Date Ranges */}
+                  <div className="lg:col-span-6 grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/80 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#4D5DFB]/20 focus:border-[#4D5DFB] transition-all"
+                      />
+                      <span className="absolute -top-2 left-3 bg-white px-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-wider">Desde</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/80 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#4D5DFB]/20 focus:border-[#4D5DFB] transition-all"
+                      />
+                      <span className="absolute -top-2 left-3 bg-white px-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-wider">Hasta</span>
+                    </div>
+                  </div>
+
+                  {/* Reset button */}
+                  <div className="lg:col-span-2 flex justify-end">
+                    {(search || selectedCat || selectedType || startDate || endDate) ? (
+                      <button
+                        onClick={() => {
+                          setSearch('');
+                          setSelectedCat('');
+                          setSelectedType('');
+                          setStartDate('');
+                          setEndDate('');
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-[#4D5DFB] hover:bg-[#4D5DFB]/5 rounded-xl transition-all border border-slate-200 hover:border-[#4D5DFB]/30"
+                      >
+                        <X size={14} /> Limpiar
+                      </button>
+                    ) : (
+                      <div className="w-full text-center py-2 text-xs text-slate-400 font-medium select-none">
+                        Filtros activos
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {isLoading ? (
                 <div className="flex items-center justify-center p-20">
                   <Loader2 className="animate-spin text-indigo-600" size={40} />
@@ -193,7 +351,7 @@ const Transactions: React.FC = () => {
                       />
                     ))
                   ) : (
-                    <p className="text-center text-[#64748B] py-10">No hay transacciones registradas.</p>
+                    <p className="text-center text-[#64748B] py-10">No hay transacciones que coincidan con los filtros.</p>
                   )}
                 </div>
               )}

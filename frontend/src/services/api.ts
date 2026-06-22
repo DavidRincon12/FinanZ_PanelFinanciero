@@ -93,8 +93,26 @@ export const parseAmount = (formatted: string): number => {
 
 const api = {
   // Finance
-  getTransactions: async (): Promise<Transaction[]> => {
-    const res = await fetch(`${API_BASE_URL}/finance/api/transactions/`, {
+  getTransactions: async (filters?: {
+    search?: string;
+    category_id?: string;
+    transaction_type?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<Transaction[]> => {
+    const cleanFilters: any = {};
+    if (filters) {
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          cleanFilters[key] = val;
+        }
+      });
+    }
+    const params = new URLSearchParams(cleanFilters).toString();
+    const url = params
+      ? `${API_BASE_URL}/finance/api/transactions/?${params}`
+      : `${API_BASE_URL}/finance/api/transactions/`;
+    const res = await fetch(url, {
       credentials: 'include',
     });
     if (!res.ok) throw new Error('Failed to fetch transactions');
