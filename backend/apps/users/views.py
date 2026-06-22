@@ -153,7 +153,7 @@ def login_api(request):
             send_mail(
                 subject="Código de verificación - FinanZ",
                 message=f"Hola {user.first_name or user.username},\n\nTu cuenta requiere verificación para iniciar sesión. Tu código de verificación es: {code}\n\nIntroduce este código en la pantalla de verificación para activar tu cuenta.",
-                from_email="no-reply@finanz.com",
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
                 fail_silently=True
             )
@@ -208,7 +208,7 @@ def register_api(request):
                 send_mail(
                     subject="Código de verificación - FinanZ",
                     message=f"Hola {existing_user.first_name or existing_user.username},\n\nTu cuenta requiere verificación para iniciar sesión. Tu código de verificación es: {code}\n\nIntroduce este código en la pantalla de verificación para activar tu cuenta.",
-                    from_email="no-reply@finanz.com",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[existing_user.email],
                     fail_silently=True
                 )
@@ -249,7 +249,7 @@ def register_api(request):
         send_mail(
             subject="Verificación de cuenta - FinanZ",
             message=f"Hola {user.first_name or user.username},\n\nGracias por registrarte en FinanZ. Tu código de verificación es: {code}\n\nIntroduce este código en la aplicación para activar tu cuenta.",
-            from_email="no-reply@finanz.com",
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=True
         )
@@ -340,7 +340,7 @@ def resend_code_api(request):
         send_mail(
             subject="Código de verificación - FinanZ",
             message=f"Hola {user.first_name or user.username},\n\nTu nuevo código de verificación es: {code}\n\nIntroduce este código en la aplicación para activar tu cuenta.",
-            from_email="no-reply@finanz.com",
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=True
         )

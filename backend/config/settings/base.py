@@ -188,6 +188,11 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # ---------------------------------------------------------------------------
+# Configuración de Email por Defecto
+# ---------------------------------------------------------------------------
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="davidsantiagorb@ufps.edu.co")
+
+# ---------------------------------------------------------------------------
 # CORS & REST Framework
 # ---------------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo local

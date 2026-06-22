@@ -51,9 +51,14 @@ CACHES = {
 }
 
 # ---------------------------------------------------------------------------
-# Email – mostrar en consola durante desarrollo
+# Email – mostrar en consola por defecto, configurable vía .env
 # ---------------------------------------------------------------------------
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="smtp-relay.sendinblue.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 
 # ---------------------------------------------------------------------------
 # django-debug-toolbar (instalar con: pip install django-debug-toolbar)
