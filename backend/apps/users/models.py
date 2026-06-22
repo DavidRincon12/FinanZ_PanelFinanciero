@@ -34,6 +34,35 @@ class CustomUser(AbstractUser):
         default="America/Bogota",
         verbose_name="Zona horaria",
     )
+    personal_activity = models.CharField(
+        max_length=20,
+        choices=[
+            ("student", "Estudiante"),
+            ("employee", "Empleado"),
+            ("freelancer", "Independiente"),
+            ("unemployed", "En búsqueda"),
+            ("retired", "Jubilado"),
+        ],
+        blank=True,
+        null=True,
+        verbose_name="Actividad Personal"
+    )
+    tastes = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Intereses y Gustos"
+    )
+    monthly_income = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        verbose_name="Ingresos Mensuales"
+    )
+    is_survey_completed = models.BooleanField(
+        default=False,
+        verbose_name="Encuesta Completada"
+    )
 
     class Meta:
         verbose_name = "Usuario"

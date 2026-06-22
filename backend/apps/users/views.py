@@ -235,6 +235,10 @@ def me_api(request):
                 "alert_at_80_percent": request.user.alert_at_80_percent,
                 "alert_at_100_percent": request.user.alert_at_100_percent,
                 "timezone": request.user.timezone,
+                "personal_activity": request.user.personal_activity,
+                "tastes": request.user.tastes,
+                "monthly_income": float(request.user.monthly_income),
+                "is_survey_completed": request.user.is_survey_completed,
             }
         })
     return JsonResponse({"authenticated": False}, status=401)
@@ -272,6 +276,36 @@ def profile_update_api(request):
         if "timezone" in data:
             user.timezone = str(data["timezone"])
             
+        survey_updated = False
+
+        if "personal_activity" in data:
+            activity = data["personal_activity"]
+            valid_choices = ["student", "employee", "freelancer", "unemployed", "retired"]
+            if activity not in valid_choices and activity is not None and activity != "":
+                return JsonResponse({"error": "Actividad personal inválida"}, status=400)
+            user.personal_activity = activity if activity != "" else None
+            survey_updated = True
+
+        if "tastes" in data:
+            user.tastes = str(data["tastes"])
+            survey_updated = True
+
+        if "monthly_income" in data:
+            try:
+                from decimal import Decimal
+                income = Decimal(str(data["monthly_income"]))
+                if income < 0:
+                    return JsonResponse({"error": "Los ingresos mensuales no pueden ser menores a 0"}, status=400)
+                user.monthly_income = income
+                survey_updated = True
+            except Exception:
+                return JsonResponse({"error": "Ingresos mensuales inválidos"}, status=400)
+
+        if "is_survey_completed" in data:
+            user.is_survey_completed = bool(data["is_survey_completed"])
+        elif survey_updated:
+            user.is_survey_completed = True
+
         user.save()
         
         return JsonResponse({
@@ -284,6 +318,10 @@ def profile_update_api(request):
                 "alert_at_80_percent": user.alert_at_80_percent,
                 "alert_at_100_percent": user.alert_at_100_percent,
                 "timezone": user.timezone,
+                "personal_activity": user.personal_activity,
+                "tastes": user.tastes,
+                "monthly_income": float(user.monthly_income),
+                "is_survey_completed": user.is_survey_completed,
             }
         })
     except Exception as e:
