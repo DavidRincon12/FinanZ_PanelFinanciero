@@ -92,6 +92,7 @@ const Register: React.FC = () => {
                     placeholder="••••••••"
                     className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-50 focus:border-[#10B981] transition-all"
                     required
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
@@ -106,6 +107,7 @@ const Register: React.FC = () => {
                     placeholder="••••••••"
                     className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-50 focus:border-[#10B981] transition-all"
                     required
+                    autoComplete="new-password"
                   />
                 </div>
               </div>

@@ -159,7 +159,7 @@ const Dashboard: React.FC = () => {
                 <h3 className="font-bold text-lg text-[#1E293B]">Balance mensual histórico</h3>
               </div>
               <div className="h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <AreaChart data={balanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
@@ -212,7 +212,7 @@ const Dashboard: React.FC = () => {
             <div className="card h-full">
               <h3 className="font-bold text-slate-800 mb-6">Gastos por categoría</h3>
               <div style={{ height: '220px' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <PieChart>
                     <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                       {pieData.map((entry, index) => {

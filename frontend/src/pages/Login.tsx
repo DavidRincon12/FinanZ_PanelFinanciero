@@ -41,6 +41,7 @@ declare global {
       };
     };
     handleCredentialResponse?: (response: GoogleCredentialResponse) => void;
+    googleInitialized?: boolean;
   }
 }
 
@@ -94,10 +95,13 @@ const Login: React.FC = () => {
         }
       };
 
-      window.google!.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: window.handleCredentialResponse,
-      });
+      if (!window.googleInitialized) {
+        window.google!.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: window.handleCredentialResponse,
+        });
+        window.googleInitialized = true;
+      }
 
       const btnContainer = document.getElementById('btnGoogleContainer');
       if (btnContainer) {
@@ -207,6 +211,7 @@ const Login: React.FC = () => {
                   className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
                   required
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
               </div>
             </div>
