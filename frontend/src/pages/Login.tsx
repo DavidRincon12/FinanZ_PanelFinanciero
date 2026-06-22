@@ -56,7 +56,21 @@ const Login: React.FC = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]           = useState('');
 
+  // Verification states
+  const [showVerification, setShowVerification] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const from = (location.state as any)?.from?.pathname || '/dashboard';
+
+  useEffect(() => {
+    let timer: any;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   // ─── Inyectar Google Identity Services script y renderizar el botón ──────────
   useEffect(() => {
@@ -144,12 +158,48 @@ const Login: React.FC = () => {
     setError('');
     try {
       const data = await api.login({ email, password });
-      login('session_active', data.user);
-      navigate(from, { replace: true });
+      if (data.status === 'verification_required') {
+        setVerifyingEmail(data.email || email);
+        setShowVerification(true);
+      } else {
+        login('session_active', data.user);
+        navigate(from, { replace: true });
+      }
     } catch (err: any) {
       setError(err.message || 'Credenciales incorrectas');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode.length !== 6) {
+      setError('El código debe tener 6 dígitos');
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const data = await api.verifyEmail({ email: verifyingEmail, code: verificationCode });
+      login('session_active', data.user);
+      navigate(from, { replace: true });
+    } catch (err: any) {
+      setError(err.message || 'Código incorrecto');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+    try {
+      await api.resendCode({ email: verifyingEmail });
+      setResendCooldown(60);
+      alert('Se ha enviado un nuevo código de verificación.');
+    } catch (err: any) {
+      setError(err.message || 'Error al reenviar el código');
     }
   };
 
@@ -179,55 +229,114 @@ const Login: React.FC = () => {
             </div>
           )}
 
-          {/* Formulario clásico */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-[#1E293B] mb-2 px-1">Correo Electrónico</label>
-              <div className="relative group">
-                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-[#4D5DFB] transition-colors" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
-                  required
+          {showVerification ? (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-[#1E293B] mb-2">Ingresa el código</h2>
+                <p className="text-xs text-[#64748B] leading-relaxed">
+                  Hemos enviado un código de verificación de 6 dígitos a: <br/>
+                  <strong className="text-[#334155]">{verifyingEmail}</strong>
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyCode} className="space-y-6">
+                <div>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    disabled={isLoading}
+                    className="w-full text-center text-3xl font-extrabold tracking-[0.4em] pl-[0.4em] py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
                   disabled={isLoading}
-                />
+                  className="w-full bg-[#4D5DFB] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#3B4AD9] transition-all active:scale-[0.98] shadow-lg shadow-indigo-100 disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>Verificar Código <ArrowRight size={18} /></>
+                  )}
+                </button>
+              </form>
+
+              <div className="flex flex-col gap-3 text-center border-t border-[#F1F5F9] pt-4 text-xs font-bold uppercase tracking-wider">
+                <button
+                  onClick={handleResendCode}
+                  disabled={resendCooldown > 0}
+                  className={`hover:underline cursor-pointer ${resendCooldown > 0 ? 'text-[#94A3B8] cursor-not-allowed' : 'text-[#4D5DFB]'}`}
+                >
+                  {resendCooldown > 0 ? `Reenviar código en ${resendCooldown}s` : 'Reenviar código'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowVerification(false);
+                    setError('');
+                    setVerificationCode('');
+                  }}
+                  className="text-[#64748B] hover:text-[#1E293B] cursor-pointer hover:underline"
+                >
+                  Volver al inicio de sesión
+                </button>
               </div>
             </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2 px-1">
-                <label className="text-sm font-bold text-[#1E293B]">Contraseña</label>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-[#1E293B] mb-2 px-1">Correo Electrónico</label>
+                <div className="relative group">
+                  <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-[#4D5DFB] transition-colors" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
-              <div className="relative group">
-                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-[#4D5DFB] transition-colors" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
-                  required
-                  disabled={isLoading}
-                  autoComplete="current-password"
-                />
-              </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#0F172A] transition-all active:scale-[0.98] shadow-lg shadow-gray-200 disabled:opacity-70"
-            >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>Iniciar Sesión <ArrowRight size={18} /></>
-              )}
-            </button>
-          </form>
+              <div>
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <label className="text-sm font-bold text-[#1E293B]">Contraseña</label>
+                </div>
+                <div className="relative group">
+                  <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-[#4D5DFB] transition-colors" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-12 pr-4 py-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-[#4D5DFB] transition-all"
+                    required
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#0F172A] transition-all active:scale-[0.98] shadow-lg shadow-gray-200 disabled:opacity-70"
+              >
+                {isSubmitting ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Iniciar Sesión <ArrowRight size={18} /></>
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Separador */}
           <div className="relative my-8">

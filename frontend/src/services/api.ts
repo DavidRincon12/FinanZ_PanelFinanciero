@@ -320,6 +320,34 @@ const api = {
     return res.json();
   },
 
+  verifyEmail: async (data: { email: string; code: string }): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/api/verify-email/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to verify email');
+    }
+    return res.json();
+  },
+
+  resendCode: async (data: { email: string }): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/api/resend-code/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to resend code');
+    }
+    return res.json();
+  },
+
   logout: async (): Promise<any> => {
     const res = await fetch(`${API_BASE_URL}/api/logout/`, {
       method: 'POST',

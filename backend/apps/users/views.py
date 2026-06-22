@@ -10,6 +10,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 import json
 import logging
+import random
+from django.core.mail import send_mail
 
 from services.auth_service import verify_firebase_token, get_or_create_user_from_firebase
 
@@ -137,6 +139,30 @@ def login_api(request):
         except User.DoesNotExist:
             return JsonResponse({"error": "Credenciales inválidas"}, status=401)
             
+        # Check password first
+        if not user.check_password(password):
+            return JsonResponse({"error": "Credenciales inválidas"}, status=401)
+            
+        # If user password is correct but they are not active, send verification code
+        if not user.is_active:
+            code = f"{random.randint(100000, 999999)}"
+            user.verification_code = code
+            user.save(update_fields=["verification_code"])
+            
+            # Send code to console/email
+            send_mail(
+                subject="Código de verificación - FinanZ",
+                message=f"Hola {user.first_name or user.username},\n\nTu cuenta requiere verificación para iniciar sesión. Tu código de verificación es: {code}\n\nIntroduce este código en la pantalla de verificación para activar tu cuenta.",
+                from_email="no-reply@finanz.com",
+                recipient_list=[user.email],
+                fail_silently=True
+            )
+            return JsonResponse({
+                "status": "verification_required",
+                "email": user.email,
+                "message": "Tu cuenta requiere verificación. Te hemos enviado un nuevo código."
+            })
+
         from django.contrib.auth import authenticate
         authenticated_user = authenticate(request, username=user.username, password=password)
         
@@ -174,6 +200,23 @@ def register_api(request):
         from django.contrib.auth import get_user_model
         User = get_user_model()
         if User.objects.filter(email=email).exists():
+            existing_user = User.objects.get(email=email)
+            if not existing_user.is_active:
+                code = f"{random.randint(100000, 999999)}"
+                existing_user.verification_code = code
+                existing_user.save(update_fields=["verification_code"])
+                send_mail(
+                    subject="Código de verificación - FinanZ",
+                    message=f"Hola {existing_user.first_name or existing_user.username},\n\nTu cuenta requiere verificación para iniciar sesión. Tu código de verificación es: {code}\n\nIntroduce este código en la pantalla de verificación para activar tu cuenta.",
+                    from_email="no-reply@finanz.com",
+                    recipient_list=[existing_user.email],
+                    fail_silently=True
+                )
+                return JsonResponse({
+                    "status": "verification_required",
+                    "email": email,
+                    "message": "Este correo ya está registrado pero requiere verificación. Se ha enviado un nuevo código."
+                })
             return JsonResponse({"error": "El correo electrónico ya está registrado"}, status=400)
             
         username = email.split('@')[0]
@@ -197,20 +240,117 @@ def register_api(request):
             first_name=first_name,
             last_name=last_name
         )
+        user.is_active = False
+        code = f"{random.randint(100000, 999999)}"
+        user.verification_code = code
+        user.save()
         
-        # Iniciar sesión automáticamente
-        login(request, user)
+        # Enviar email
+        send_mail(
+            subject="Verificación de cuenta - FinanZ",
+            message=f"Hola {user.first_name or user.username},\n\nGracias por registrarte en FinanZ. Tu código de verificación es: {code}\n\nIntroduce este código en la aplicación para activar tu cuenta.",
+            from_email="no-reply@finanz.com",
+            recipient_list=[user.email],
+            fail_silently=True
+        )
         
         return JsonResponse({
-            "status": "success",
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "name": user.get_full_name() or user.username,
-            }
+            "status": "verification_required",
+            "email": email,
+            "message": "Registro exitoso. Introduce el código enviado a tu correo."
         })
     except Exception as e:
         logger.error(f"Error en register_api: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def verify_email_api(request):
+    """API para verificar el código de correo y activar la cuenta."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        code = data.get("code")
+        
+        if not email or not code:
+            return JsonResponse({"error": "Correo y código son requeridos"}, status=400)
+            
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Usuario no encontrado"}, status=404)
+            
+        if user.is_active:
+            return JsonResponse({"error": "Esta cuenta ya está verificada"}, status=400)
+            
+        if user.verification_code == str(code).strip():
+            user.is_active = True
+            user.verification_code = None
+            user.save(update_fields=["is_active", "verification_code"])
+            
+            # Autologin
+            login(request, user)
+            
+            return JsonResponse({
+                "status": "success",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "name": user.get_full_name() or user.username,
+                }
+            })
+        else:
+            return JsonResponse({"error": "Código de verificación incorrecto"}, status=400)
+    except Exception as e:
+        logger.error(f"Error en verify_email_api: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def resend_code_api(request):
+    """API para reenviar el código de verificación por correo."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        
+        if not email:
+            return JsonResponse({"error": "El correo es requerido"}, status=400)
+            
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Usuario no encontrado"}, status=404)
+            
+        if user.is_active:
+            return JsonResponse({"error": "Esta cuenta ya está verificada"}, status=400)
+            
+        code = f"{random.randint(100000, 999999)}"
+        user.verification_code = code
+        user.save(update_fields=["verification_code"])
+        
+        # Enviar email
+        send_mail(
+            subject="Código de verificación - FinanZ",
+            message=f"Hola {user.first_name or user.username},\n\nTu nuevo código de verificación es: {code}\n\nIntroduce este código en la aplicación para activar tu cuenta.",
+            from_email="no-reply@finanz.com",
+            recipient_list=[user.email],
+            fail_silently=True
+        )
+        
+        return JsonResponse({
+            "status": "success",
+            "message": "Código reenviado correctamente"
+        })
+    except Exception as e:
+        logger.error(f"Error en resend_code_api: {e}")
         return JsonResponse({"error": str(e)}, status=500)
 
 

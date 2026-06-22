@@ -63,6 +63,12 @@ class CustomUser(AbstractUser):
         default=False,
         verbose_name="Encuesta Completada"
     )
+    verification_code = models.CharField(
+        max_length=6,
+        blank=True,
+        null=True,
+        verbose_name="Código de verificación"
+    )
 
     class Meta:
         verbose_name = "Usuario"
