@@ -10,6 +10,10 @@ interface User {
   alert_at_80_percent?: boolean;
   alert_at_100_percent?: boolean;
   timezone?: string;
+  personal_activity?: string | null;
+  tastes?: string;
+  monthly_income?: number;
+  is_survey_completed?: boolean;
 }
 
 interface AuthContextType {

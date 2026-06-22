@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import AnimatedPage from '../components/AnimatedPage';
+import SurveyModal from '../components/SurveyModal';
 import { AlertCircle, Wallet, TrendingUp, TrendingDown, Target, ArrowRight, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import api from '../services/api';
 import type { Transaction, SavingsGoal, AppNotification } from '../services/api';
 import { getCategoryStyle } from '../utils/categoryHelper';
 import { fmtMoney } from '../utils/format';
+import { useAuth } from '../context/AuthContext';
 
 const TransactionRow = ({ date, category, categoryIcon, description, amount, type }: any) => {
   const catStyle = getCategoryStyle(category, 16);
@@ -30,6 +32,7 @@ const TransactionRow = ({ date, category, categoryIcon, description, amount, typ
 };
 
 const Dashboard: React.FC = () => {
+  const { user, updateUser } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalBalance, setTotalBalance]   = useState<number | null>(null);
   const [monthIncome, setMonthIncome]     = useState<number>(0);
@@ -40,6 +43,28 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts]               = useState<AppNotification[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [surveyToast, setSurveyToast] = useState(false);
+
+  const handleSurveyComplete = async (data: { personal_activity: string; tastes: string; monthly_income: number }) => {
+    try {
+      await api.updateProfile({
+        personal_activity: data.personal_activity,
+        tastes: data.tastes,
+        monthly_income: data.monthly_income,
+        is_survey_completed: true,
+      });
+      updateUser({
+        personal_activity: data.personal_activity,
+        tastes: data.tastes,
+        monthly_income: data.monthly_income,
+        is_survey_completed: true,
+      });
+      setSurveyToast(true);
+      setTimeout(() => setSurveyToast(false), 4000);
+    } catch (err) {
+      console.error('Error saving survey:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,6 +104,13 @@ const Dashboard: React.FC = () => {
   }, []);
 
   return (
+    <>
+      <SurveyModal isOpen={!user?.is_survey_completed} onComplete={handleSurveyComplete} />
+      {surveyToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg font-bold text-sm animate-fade-in">
+          ✅ ¡Encuesta completada! Tu perfil ha sido actualizado.
+        </div>
+      )}
     <Layout title="Dashboard">
       <AnimatedPage>
         {isLoading ? (
@@ -374,6 +406,7 @@ const Dashboard: React.FC = () => {
         )}
       </AnimatedPage>
     </Layout>
+    </>
   );
 };
 

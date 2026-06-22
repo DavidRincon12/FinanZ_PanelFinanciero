@@ -414,6 +414,10 @@ const api = {
     alert_at_80_percent?: boolean;
     alert_at_100_percent?: boolean;
     timezone?: string;
+    personal_activity?: string;
+    tastes?: string;
+    monthly_income?: number;
+    is_survey_completed?: boolean;
   }): Promise<any> => {
     const res = await fetch(`${API_BASE_URL}/api/profile/update/`, {
       method: 'POST',
