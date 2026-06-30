@@ -72,14 +72,14 @@ function getFinancialTips(activity: string | null | undefined, tastes: string | 
       );
   }
 
-  const tastesStr = tastes || '';
-  if (tastesStr.includes('restaurantes_y_comida')) {
+  const tastesStr = (tastes || '').toLowerCase();
+  if (tastesStr.includes('restaurantes_y_comida') || tastesStr.includes('restaurantes y comida') || tastesStr.includes('comida') || tastesStr.includes('cocina')) {
     tips.push({ icon: '🍳', title: 'Planifica tus comidas', tip: 'Cocinar en casa puede ahorrarte hasta un 60% en alimentación. Planifica un menú semanal y haz compras inteligentes.' });
   }
-  if (tastesStr.includes('tecnologia')) {
+  if (tastesStr.includes('tecnologia') || tastesStr.includes('tecnología')) {
     tips.push({ icon: '💻', title: 'Compras tech inteligentes', tip: 'Compara precios antes de comprar gadgets y espera épocas de ofertas. A menudo la versión anterior tiene la mejor relación calidad-precio.' });
   }
-  if (tastesStr.includes('viajes_y_turismo')) {
+  if (tastesStr.includes('viajes_y_turismo') || tastesStr.includes('viajes y turismo') || tastesStr.includes('viajes') || tastesStr.includes('viaje')) {
     tips.push({ icon: '✈️', title: 'Fondo de viajes', tip: 'Crea un fondo exclusivo para viajes. Ahorra un monto fijo mensual y podrás viajar sin afectar tu presupuesto regular.' });
   }
 
