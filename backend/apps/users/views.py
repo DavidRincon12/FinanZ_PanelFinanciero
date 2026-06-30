@@ -293,7 +293,7 @@ def verify_email_api(request):
             user.save(update_fields=["is_active", "verification_code"])
             
             # Autologin
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             
             return JsonResponse({
                 "status": "success",

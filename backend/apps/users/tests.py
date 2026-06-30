@@ -107,3 +107,83 @@ class UserPersonalizationTests(TestCase):
         data = response.json()
         self.assertIn("error", data)
         self.assertEqual(data["error"], "Los ingresos mensuales no pueden ser menores a 0")
+
+
+class UserEmailVerificationTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.email = "unverified@example.com"
+        self.password = "password123"
+        self.user = User.objects.create_user(
+            username="unverified",
+            email=self.email,
+            password=self.password,
+            first_name="Unverified",
+            last_name="User"
+        )
+        self.user.is_active = False
+        self.user.verification_code = "123456"
+        self.user.save()
+        self.verify_url = reverse("users:verify_email_api")
+        self.resend_url = reverse("users:resend_code_api")
+
+    def test_verify_email_api_success(self):
+        payload = {
+            "email": self.email,
+            "code": "123456"
+        }
+        response = self.client.post(
+            self.verify_url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        
+        # Verify user is active and logged in
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+        self.assertIsNone(self.user.verification_code)
+        
+        # Check session
+        me_response = self.client.get(reverse("users:me_api"))
+        self.assertEqual(me_response.status_code, 200)
+        self.assertTrue(me_response.json()["authenticated"])
+
+    def test_verify_email_api_wrong_code(self):
+        payload = {
+            "email": self.email,
+            "code": "999999"
+        }
+        response = self.client.post(
+            self.verify_url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data["error"], "Código de verificación incorrecto")
+        
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
+    def test_resend_code_success(self):
+        payload = {
+            "email": self.email
+        }
+        # Check initial code
+        old_code = self.user.verification_code
+        
+        response = self.client.post(
+            self.resend_url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.verification_code, old_code)
+        self.assertEqual(len(self.user.verification_code), 6)
