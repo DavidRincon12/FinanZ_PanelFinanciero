@@ -1,12 +1,9 @@
-# Progress Ledger - Centro de Transacciones Avanzado
-Baseline Commit: 511ef6c6b879df6b2779bc2a222c48f058965af5
+# Progress Ledger - Personalización, Concientización Financiera y Rediseño de Presupuestos
+Baseline Commit: f5b8c78dc782483169d7ace1e0ce376842037ffd
 
-- [x] Task 1: Backend Selectors & URL Filtering
-- [x] Task 2: Backend Bulk Create API
-- [x] Task 3: Frontend Filter Component & Search Bar
-- [x] Task 4: Frontend CSV Importer Modal & Parsing Flow
-
-Task 1: complete (commits 28c8b53..a20a9b0, review clean)
-Task 2: complete (commits 5bbd08e..f211872, review clean)
-Task 3: complete (commits 6de5099..46db90d, review clean)
-Task 4: complete (commits 5bc739e..dd0f698, review clean)
+- [x] Task 1: Depuración Técnica de la Consola
+- [ ] Task 2: Backend User Model & APIs updates
+- [ ] Task 3: SurveyModal Component & Dashboard Integration
+- [ ] Task 4: Dynamic Recommendations & Budget 50/30/20 Suggested Banner
+- [ ] Task 5: Overspending Comparison & Historical Alert Logs
+- [ ] Task 6: Premium Budgets Grid Redesign & period filters
