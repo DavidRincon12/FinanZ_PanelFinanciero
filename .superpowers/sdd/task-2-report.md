@@ -135,3 +135,62 @@ All existing tests and new service tests are green and passing.
 
 ## Concerns or Issues
 None.
+
+---
+
+## Fixer Subagent Findings & Resolution Report
+
+### 1. Modifications Made
+We successfully resolved the important findings from Task 2:
+- **Service Layer Coupling with HTTP Shortcut:**
+  In `backend/services/finance_service.py`, we removed the view-specific `get_object_or_404` helper from `django.shortcuts` (including its import statement) and replaced it with direct Django ORM queries:
+  ```python
+  sub = Subscription.objects.get(id=subscription_id, user=user)
+  ```
+- **Inactive Subscription Validation:**
+  In `subscription_confirm` and `subscription_skip` inside `backend/services/finance_service.py`, we added validation check:
+  ```python
+  if not sub.is_active:
+      raise ValueError("La suscripción está pausada/inactiva.")
+  ```
+- **Verification Tests:**
+  In `backend/apps/finance/tests.py`, we added two new tests verifying that attempting to call `subscription_confirm` or `subscription_skip` on an inactive subscription raises a `ValueError`:
+  - `test_subscription_confirm_inactive_raises_value_error`
+  - `test_subscription_skip_inactive_raises_value_error`
+
+### 2. Test Execution & Outputs
+**Command Run:**
+```bash
+python backend/manage.py test apps.finance --noinput
+```
+
+**Output:**
+```text
+Creating test database for alias 'default'...
+Got an error creating the test database: database "test_neondb" already exists
+
+Destroying old test database for alias 'default'...
+System check identified some issues:
+
+WARNINGS:
+?: (staticfiles.W004) The directory 'C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\frontend\static' in the STATICFILES_DIRS setting does not exist.
+
+System check identified 1 issue (0 silenced).
+...Subscription confirmed: id=3, transaction created: id=1
+.Subscription created: id=4 user=5 name=HBO Max
+..Subscription skipped: id=6
+.Bad Request: /finance/api/transactions/bulk/
+.Bulk created 2 transactions for user 9
+.......
+----------------------------------------------------------------------
+Ran 15 tests in 74.228s
+
+OK
+```
+
+All 15 tests (including the 2 new unit tests) executed successfully and passed.
+
+### 3. Commit Details
+- **Commit Hash:** `62efca8`
+- **Message:** `Fix HTTP coupling in finance service and add inactive subscription validation with tests`
+
