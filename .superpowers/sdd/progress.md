@@ -8,3 +8,5 @@ Baseline Commit: d048713c18aba671a15fbf9f808851f8ee46b136
 - [ ] Task 5: Frontend API client methods
 - [ ] Task 6: Frontend Routing & Sidebar Navigation
 - [ ] Task 7: Subscriptions Page Component (`Subscriptions.tsx`)
+
+Task 1: complete (commits 5de003b..7639c59, review clean)
