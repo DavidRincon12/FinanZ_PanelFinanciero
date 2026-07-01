@@ -166,3 +166,32 @@ class TransactionBulkCreateTestCase(TestCase):
         self.assertEqual(tx2.amount, 50)
         self.assertIsNone(tx2.category)
 
+
+from django.test import TestCase
+from django.contrib.auth import get_user_model
+from apps.finance.models import Category, Subscription
+import datetime
+
+User = get_user_model()
+
+class SubscriptionModelTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", email="test@test.com", password="password")
+        self.category = Category.objects.create(name="Streaming", icon="🎬", category_type=Category.SYSTEM)
+
+    def test_subscription_creation(self):
+        subscription = Subscription.objects.create(
+            user=self.user,
+            name="Netflix",
+            amount=44900.00,
+            category=self.category,
+            frequency="monthly",
+            start_date=datetime.date(2026, 6, 1),
+            next_billing_date=datetime.date(2026, 7, 1),
+            is_active=True,
+            auto_pay=False,
+            alert_days_before=3
+        )
+        self.assertEqual(subscription.name, "Netflix")
+        self.assertEqual(str(subscription), "Netflix - $44900.00 (Mensual)")
+

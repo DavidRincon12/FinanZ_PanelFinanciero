@@ -99,3 +99,59 @@ class Transaction(models.Model):
     def signed_amount(self) -> Decimal:
         """Monto con signo para cálculos de balance."""
         return self.amount if self.transaction_type == self.INCOME else -self.amount
+
+
+class Subscription(models.Model):
+    FREQUENCY_CHOICES = [
+        ('weekly', 'Semanal'),
+        ('monthly', 'Mensual'),
+        ('quarterly', 'Trimestral'),
+        ('semiannually', 'Semestral'),
+        ('annually', 'Anual'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+        verbose_name="Usuario"
+    )
+    name = models.CharField(max_length=100, verbose_name="Nombre del Servicio")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Costo")
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subscriptions",
+        verbose_name="Categoría"
+    )
+    frequency = models.CharField(
+        max_length=15,
+        choices=FREQUENCY_CHOICES,
+        default='monthly',
+        verbose_name="Frecuencia de Pago"
+    )
+    start_date = models.DateField(verbose_name="Fecha de Inicio")
+    next_billing_date = models.DateField(verbose_name="Próxima Fecha de Pago")
+    is_active = models.BooleanField(default=True, verbose_name="¿Activa?")
+    auto_pay = models.BooleanField(default=False, verbose_name="¿Pago Automático?")
+    alert_days_before = models.PositiveIntegerField(
+        default=3,
+        verbose_name="Días de Alerta Anticipada"
+    )
+    last_processed_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Última Fecha Procesada"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Suscripción"
+        verbose_name_plural = "Suscripciones"
+        ordering = ["next_billing_date"]
+
+    def __str__(self):
+        return f"{self.name} - ${self.amount:.2f} ({self.get_frequency_display()})"

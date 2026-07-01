@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Transaction
+from .models import Category, Transaction, Subscription
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -13,3 +13,9 @@ class TransactionAdmin(admin.ModelAdmin):
     list_filter = ["transaction_type", "date"]
     search_fields = ["description", "user__username"]
     date_hierarchy = "date"
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'amount', 'frequency', 'next_billing_date', 'is_active', 'auto_pay')
+    list_filter = ('is_active', 'auto_pay', 'frequency')
+    search_fields = ('name', 'user__username')
