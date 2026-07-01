@@ -13,6 +13,7 @@ import NotFound from './pages/NotFound';
 import Goals from './pages/Goals';
 import Categories from './pages/Categories';
 import Profile from './pages/Profile';
+import Subscriptions from './pages/Subscriptions';
 
 const App: React.FC = () => {
   return (
@@ -80,6 +81,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/subscriptions" 
+            element={
+              <ProtectedRoute>
+                <Subscriptions />
               </ProtectedRoute>
             } 
           />
