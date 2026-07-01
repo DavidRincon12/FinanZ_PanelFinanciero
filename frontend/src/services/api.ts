@@ -503,4 +503,135 @@ const api = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Subscription types and API methods
+// ---------------------------------------------------------------------------
+
+export type SubscriptionFrequency =
+  | 'weekly'
+  | 'monthly'
+  | 'quarterly'
+  | 'semiannually'
+  | 'annually';
+
+export interface Subscription {
+  id: number;
+  name: string;
+  amount: number;
+  /** FK id of the linked Category (read) */
+  category: number | null;
+  /** Write-only: pass category id when creating/updating */
+  category_id?: number | null;
+  category_name?: string | null;
+  category_icon?: string | null;
+  frequency: SubscriptionFrequency;
+  start_date: string;        // ISO date YYYY-MM-DD
+  next_billing_date: string; // ISO date, read-only
+  is_active: boolean;
+  auto_pay: boolean;
+  alert_days_before: number;
+  last_processed_date: string | null;
+  created_at: string;
+}
+
+export type SubscriptionCreatePayload = Omit<
+  Subscription,
+  'id' | 'category' | 'category_name' | 'category_icon' | 'next_billing_date' | 'last_processed_date' | 'created_at'
+>;
+
+export type SubscriptionUpdatePayload = Partial<SubscriptionCreatePayload>;
+
+/** All subscription CRUD + action helpers */
+export const subscriptionApi = {
+  /** List all subscriptions for the authenticated user. */
+  list: async (): Promise<Subscription[]> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Failed to fetch subscriptions');
+    return res.json();
+  },
+
+  /** Retrieve a single subscription by id. */
+  get: async (id: number): Promise<Subscription> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/${id}/`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`Failed to fetch subscription ${id}`);
+    return res.json();
+  },
+
+  /** Create a new subscription. */
+  create: async (payload: SubscriptionCreatePayload): Promise<Subscription> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create subscription');
+    }
+    return res.json();
+  },
+
+  /** Partially update an existing subscription (PATCH). */
+  update: async (id: number, payload: SubscriptionUpdatePayload): Promise<Subscription> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update subscription');
+    }
+    return res.json();
+  },
+
+  /** Delete a subscription. */
+  delete: async (id: number): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/${id}/`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`Failed to delete subscription ${id}`);
+  },
+
+  /**
+   * Confirm the current billing cycle: creates an Expense transaction
+   * and advances next_billing_date to the next cycle.
+   */
+  confirm: async (id: number): Promise<{ status: string; transaction_id: number }> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/${id}/confirm/`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to confirm subscription payment');
+    }
+    return res.json();
+  },
+
+  /**
+   * Skip the current billing cycle: advances next_billing_date without
+   * creating a Transaction.
+   */
+  skip: async (id: number): Promise<{ status: string }> => {
+    const res = await fetch(`${API_BASE_URL}/finance/api/subscriptions/${id}/skip/`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to skip subscription payment');
+    }
+    return res.json();
+  },
+};
+
 export default api;
+
