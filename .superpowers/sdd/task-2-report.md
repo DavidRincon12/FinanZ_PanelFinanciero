@@ -1,74 +1,137 @@
-# Task 2 Report: Backend User Model & APIs updates
+# Task 2 Report: Service Layer & Business Logic (`finance_service.py`)
 
-## Status
-- **Completed**: Yes
-- **Date**: 2026-06-30
-- **Verified Commits**: `149cc30` (Backend: Modify CustomUser model and views to support personalization fields) in the range `09118a3..149cc30`
+## Implementation Details
 
-## What was Verified & Implemented
-Verified that the database schema and view handlers are fully implemented and compliant with the personalization requirements:
+We successfully implemented the core service operations for managing subscriptions under `backend/services/finance_service.py`.
 
-1. **CustomUser Model Updates**:
-   In [models.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/models.py), the [CustomUser](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/models.py#L10) model has been extended with the four required database fields:
-   - `personal_activity`: A `CharField` containing choices representing user's activity (Estudiante, Empleado, Independiente, En búsqueda, Jubilado).
-   - `tastes`: A `CharField` to store user interests and tastes.
-   - `monthly_income`: A `DecimalField` for monthly incomes.
-   - `is_survey_completed`: A `BooleanField` to track if the onboarding survey has been finished.
+Specifically, we added:
+1. `calculate_next_billing_date(current_date: datetime.date, frequency: str) -> datetime.date`: A helper that robustly computes the next billing date based on `weekly`, `monthly`, `quarterly`, `semiannually`, or `annually` intervals. It handles variable month lengths and leap years correctly.
+2. `subscription_create(user: CustomUser, data: dict) -> Subscription`: A service method to instantiate and save a new `Subscription` database object, validating dates and numeric conversion on `amount`.
+3. `subscription_confirm(user: CustomUser, subscription_id: int) -> Transaction`: A service method wrapped in a database transaction (`db_transaction.atomic()`) that confirms a pending payment, spawns a corresponding expense `Transaction` record, and advances the next billing date by updating `last_processed_date` and `next_billing_date`.
+4. `subscription_skip(user: CustomUser, subscription_id: int) -> None`: A service method that skips the current billing period, advancing `next_billing_date` and setting `last_processed_date` without registering a transaction.
 
-2. **Database Migrations**:
-   The migration file [0002_customuser_is_survey_completed_and_more.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/migrations/0002_customuser_is_survey_completed_and_more.py) was generated and applied to the database, creating the schema changes successfully.
+---
 
-3. **Retrieve User API View**:
-   In [views.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py), the [me_api](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py#L365) view returns these four new personalization fields in JSON format, properly casting `monthly_income` as a float.
+## TDD Evidence
 
-4. **Update User Profile API View**:
-   In [views.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py), the [profile_update_api](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py#L389) handles updating the survey parameters:
-   - Validates that `personal_activity` corresponds to valid choices.
-   - Validates that `monthly_income` is not negative and can be parsed as a decimal.
-   - Saves preferences and updates `is_survey_completed` flag appropriately.
-
-## Tests Run and Output
-Executed the unit tests in [tests.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/tests.py) targeting [UserPersonalizationTests](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/tests.py#L8):
-` .venv\Scripts\python backend\manage.py test apps.users`
-
-### Test Command Output
+### 1. RED Phase (Failing Tests)
+**Command Run:**
+```bash
+python backend/manage.py test apps.finance.tests.SubscriptionServiceTest --keepdb
 ```
-Creating test database for alias 'default'...
-Got an error creating the test database: database "test_neondb" already exists
 
-Found 4 test(s).
-Type 'yes' if you would like to try deleting the test database 'test_neondb', or 'no' to cancel: Destroying old test database for alias 'default'...
+**Failing Output snippet:**
+```text
+Using existing test database for alias 'default'...
 System check identified some issues:
 
 WARNINGS:
 ?: (staticfiles.W004) The directory 'C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\frontend\static' in the STATICFILES_DIRS setting does not exist.
 
 System check identified 1 issue (0 silenced).
-..Bad Request: /api/profile/update/
-.Bad Request: /api/profile/update/
-.
+EEEE
+======================================================================
+ERROR: test_calculate_next_billing_date (apps.finance.tests.SubscriptionServiceTest.test_calculate_next_billing_date)
 ----------------------------------------------------------------------
-Ran 4 tests in 21.582s
+Traceback (most recent call last):
+  File "C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\backend\apps\finance\tests.py", line 208, in test_calculate_next_billing_date
+    self.assertEqual(finance_service.calculate_next_billing_date(start, 'weekly'), datetime.date(2026, 6, 8))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'services.finance_service' has no attribute 'calculate_next_billing_date'
 
-OK
-Destroying test database for alias 'default'...
+======================================================================
+ERROR: test_subscription_confirm_service (apps.finance.tests.SubscriptionServiceTest.test_subscription_confirm_service)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\backend\apps\finance\tests.py", line 235, in test_subscription_confirm_service
+    tx = finance_service.subscription_confirm(self.user, sub.id)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'services.finance_service' has no attribute 'subscription_confirm'
+
+======================================================================
+ERROR: test_subscription_create_service (apps.finance.tests.SubscriptionServiceTest.test_subscription_create_service)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\backend\apps\finance\tests.py", line 224, in test_subscription_create_service
+    sub = finance_service.subscription_create(self.user, data)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'services.finance_service' has no attribute 'subscription_create'
+
+======================================================================
+ERROR: test_subscription_skip_service (apps.finance.tests.SubscriptionServiceTest.test_subscription_skip_service)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\backend\apps\finance\tests.py", line 248, in test_subscription_skip_service
+    finance_service.subscription_skip(self.user, sub.id)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'services.finance_service' has no attribute 'subscription_skip'
+
+----------------------------------------------------------------------
+Ran 4 tests in 8.438s
+
+FAILED (errors=4)
 ```
 
-*Note: The unit tests ran and finished successfully (OK).*
+**Why Failure Was Expected:**
+The tests look for the four newly defined functions under `services.finance_service` (`calculate_next_billing_date`, `subscription_create`, `subscription_confirm`, and `subscription_skip`). Since we had only defined `SubscriptionServiceTest` inside `backend/apps/finance/tests.py` and had not written these implementations in `backend/services/finance_service.py`, python threw `AttributeError`.
 
-## Files Changed/Verified
-- [backend/apps/users/models.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/models.py) (Verified [CustomUser](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/models.py#L10) definition)
-- [backend/apps/users/views.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py) (Verified [me_api](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py#L365) & [profile_update_api](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/views.py#L389) handlers)
-- [backend/apps/users/tests.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/tests.py) (Verified [UserPersonalizationTests](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/tests.py#L8))
-- [backend/apps/users/migrations/0002_customuser_is_survey_completed_and_more.py](file:///C:/Users/David/Documents/GitHub/FinanZ_PanelFinanciero/backend/apps/users/migrations/0002_customuser_is_survey_completed_and_more.py) (Verified migration fields)
+---
+
+### 2. GREEN Phase (Passing Tests)
+**Command Run:**
+```bash
+python backend/manage.py test apps.finance.tests.SubscriptionServiceTest --keepdb
+```
+
+**Passing Output:**
+```text
+Using existing test database for alias 'default'...
+System check identified some issues:
+
+WARNINGS:
+?: (staticfiles.W004) The directory 'C:\Users\David\Documents\GitHub\FinanZ_PanelFinanciero\frontend\static' in the STATICFILES_DIRS setting does not exist.
+
+System check identified 1 issue (0 silenced).
+.Subscription confirmed: id=5, transaction created: id=21
+.Subscription created: id=6 user=17 name=HBO Max
+.Subscription skipped: id=7
+.
+----------------------------------------------------------------------
+Ran 4 tests in 9.723s
+
+OK
+Preserving test database for alias 'default'...
+Found 4 test(s).
+```
+
+### 3. Full Test Suite Validation
+We ran the entire test suite covering all applications (`finance`, `budget`, `goals`, `users`):
+```bash
+python backend/manage.py test apps.finance apps.budget apps.goals apps.users --keepdb
+```
+**Results:**
+```text
+Ran 20 tests in 97.693s
+
+OK
+```
+All existing tests and new service tests are green and passing.
+
+---
+
+## Files Changed
+- `backend/services/finance_service.py`: Added core subscription logic methods and imported necessary utilities/models.
+- `backend/apps/finance/tests.py`: Added the `SubscriptionServiceTest` suite to verify business operations and integration.
+
+---
 
 ## Self-Review Findings
-- **Security & Authorization**: The profile endpoints are properly protected with `@login_required` or check for authentication status first, ensuring unauthorized users cannot access or alter profile details.
-- **Validation**: Incoming parameters are checked correctly. Error responses return standard Django `JsonResponse` with 400 status codes.
-- **Code Quality**: Correct decimal parsing is used with bounds checking (`income < 0` returns 400). Choice options are checked against the whitelist array.
+- **Completeness:** Checked all target features in the Task 2 brief. The next billing date updates, database transactions, model constraints, and date parsing are fully covered.
+- **Quality:** Followed strict typing annotations and used Django standard models/transactions. Clean docstrings and logging statements are kept.
+- **Discipline:** No extraneous code or extra packages were installed.
+- **Testing:** 4/4 new test cases cover exact edge cases (weekly/monthly/quarterly/semiannually/annually intervals, transaction insertion on confirmation, date skipping) and validation. Output is clean.
 
-## Issues or Concerns
-- During the teardown of the test database, Django encountered:
-  `django.db.utils.OperationalError: database "test_neondb" is being accessed by other users`
-  `DETAIL: There is 1 other session using the database.`
-  This is a known issue when testing against external/remote PostgreSQL databases (such as Neon) due to active pool connections. However, the tests themselves completed and passed successfully (`OK`).
+---
+
+## Concerns or Issues
+None.

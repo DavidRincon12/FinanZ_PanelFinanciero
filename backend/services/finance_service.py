@@ -7,13 +7,16 @@ Las vistas llaman a estas funciones; nunca manipulan modelos directamente.
 from __future__ import annotations
 
 import logging
+import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction as db_transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
-from apps.finance.models import Transaction, Category
+from apps.finance.models import Transaction, Category, Subscription
 
 if TYPE_CHECKING:
     from apps.users.models import CustomUser
@@ -272,4 +275,93 @@ def transactions_bulk_create(user: "CustomUser", data_list: list[dict]) -> list[
         created_transactions = Transaction.objects.bulk_create(transactions_to_create)
         logger.info("Bulk created %d transactions for user %s", len(created_transactions), user.pk)
         return created_transactions
+
+
+def calculate_next_billing_date(current_date: datetime.date, frequency: str) -> datetime.date:
+    """Calcula la siguiente fecha de vencimiento según la frecuencia."""
+    if frequency == 'weekly':
+        return current_date + datetime.timedelta(days=7)
+    elif frequency == 'monthly':
+        # Sumar un mes de forma robusta
+        year = current_date.year + (current_date.month // 12)
+        month = (current_date.month % 12) + 1
+        day = min(current_date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+        return datetime.date(year, month, day)
+    elif frequency == 'quarterly':
+        # Sumar 3 meses
+        year = current_date.year + ((current_date.month + 2) // 12)
+        month = ((current_date.month + 2) % 12) + 1
+        day = min(current_date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+        return datetime.date(year, month, day)
+    elif frequency == 'semiannually':
+        # Sumar 6 meses
+        year = current_date.year + ((current_date.month + 5) // 12)
+        month = ((current_date.month + 5) % 12) + 1
+        day = min(current_date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+        return datetime.date(year, month, day)
+    elif frequency == 'annually':
+        # Sumar 1 año
+        year = current_date.year + 1
+        day = min(current_date.day, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28) if current_date.month == 2 and current_date.day == 29 else current_date.day
+        return datetime.date(year, current_date.month, day)
+    return current_date
+
+
+def subscription_create(user: "CustomUser", data: dict) -> Subscription:
+    """Crea y guarda una nueva suscripción."""
+    name = data.get("name", "").strip()
+    amount = Decimal(str(data.get("amount", 0)))
+    category_id = data.get("category_id")
+    category = Category.objects.filter(id=category_id).first() if category_id else None
+    frequency = data.get("frequency", "monthly")
+    start_date_raw = data.get("start_date")
+    start_date = parse_date(str(start_date_raw)) if start_date_raw else timezone.now().date()
+    auto_pay = bool(data.get("auto_pay", False))
+    alert_days_before = int(data.get("alert_days_before", 3))
+
+    sub = Subscription.objects.create(
+        user=user,
+        name=name,
+        amount=amount,
+        category=category,
+        frequency=frequency,
+        start_date=start_date,
+        next_billing_date=start_date,  # Inicialmente el vencimiento es la fecha de inicio
+        is_active=True,
+        auto_pay=auto_pay,
+        alert_days_before=alert_days_before
+    )
+    logger.info("Subscription created: id=%s user=%s name=%s", sub.pk, user.pk, name)
+    return sub
+
+
+def subscription_confirm(user: "CustomUser", subscription_id: int) -> Transaction:
+    """Confirma un pago pendiente, registra una transacción y avanza el ciclo."""
+    with db_transaction.atomic():
+        sub = get_object_or_404(Subscription, id=subscription_id, user=user)
+        # Crear transacción de egreso
+        tx = Transaction.objects.create(
+            user=user,
+            amount=sub.amount,
+            transaction_type=Transaction.EXPENSE,
+            category=sub.category,
+            description=f"Pago: {sub.name}",
+            date=sub.next_billing_date
+        )
+        # Actualizar fecha de cobro y última procesada
+        sub.last_processed_date = sub.next_billing_date
+        sub.next_billing_date = calculate_next_billing_date(sub.next_billing_date, sub.frequency)
+        sub.save()
+        logger.info("Subscription confirmed: id=%s, transaction created: id=%s", sub.pk, tx.pk)
+        return tx
+
+
+def subscription_skip(user: "CustomUser", subscription_id: int) -> None:
+    """Omite el cobro del periodo actual y avanza la fecha al siguiente vencimiento."""
+    sub = get_object_or_404(Subscription, id=subscription_id, user=user)
+    sub.last_processed_date = sub.next_billing_date
+    sub.next_billing_date = calculate_next_billing_date(sub.next_billing_date, sub.frequency)
+    sub.save()
+    logger.info("Subscription skipped: id=%s", sub.pk)
+
 

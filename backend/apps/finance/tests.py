@@ -195,3 +195,59 @@ class SubscriptionModelTest(TestCase):
         self.assertEqual(subscription.name, "Netflix")
         self.assertEqual(str(subscription), "Netflix - $44900.00 (Mensual)")
 
+
+from services import finance_service
+
+class SubscriptionServiceTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testservice", email="service@test.com", password="password")
+        self.category = Category.objects.create(name="Entertainment", icon="🍿", category_type=Category.SYSTEM)
+
+    def test_calculate_next_billing_date(self):
+        start = datetime.date(2026, 6, 1)
+        self.assertEqual(finance_service.calculate_next_billing_date(start, 'weekly'), datetime.date(2026, 6, 8))
+        self.assertEqual(finance_service.calculate_next_billing_date(start, 'monthly'), datetime.date(2026, 7, 1))
+        self.assertEqual(finance_service.calculate_next_billing_date(start, 'quarterly'), datetime.date(2026, 9, 1))
+        self.assertEqual(finance_service.calculate_next_billing_date(start, 'semiannually'), datetime.date(2026, 12, 1))
+        self.assertEqual(finance_service.calculate_next_billing_date(start, 'annually'), datetime.date(2027, 6, 1))
+
+    def test_subscription_create_service(self):
+        data = {
+            "name": "HBO Max",
+            "amount": 24900.00,
+            "category_id": self.category.id,
+            "frequency": "monthly",
+            "start_date": "2026-06-01",
+            "auto_pay": False,
+            "alert_days_before": 2
+        }
+        sub = finance_service.subscription_create(self.user, data)
+        self.assertEqual(sub.name, "HBO Max")
+        self.assertEqual(sub.next_billing_date, datetime.date(2026, 6, 1))
+
+    def test_subscription_confirm_service(self):
+        sub = Subscription.objects.create(
+            user=self.user, name="Spotify", amount=14900.00, category=self.category,
+            frequency="monthly", start_date=datetime.date(2026, 6, 1),
+            next_billing_date=datetime.date(2026, 6, 1), is_active=True, auto_pay=False
+        )
+        # Confirming the subscription should register a transaction and advance the next billing date
+        tx = finance_service.subscription_confirm(self.user, sub.id)
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.amount, 14900.00)
+        sub.refresh_from_db()
+        self.assertEqual(sub.next_billing_date, datetime.date(2026, 7, 1))
+        self.assertEqual(sub.last_processed_date, datetime.date(2026, 6, 1))
+
+    def test_subscription_skip_service(self):
+        sub = Subscription.objects.create(
+            user=self.user, name="Spotify", amount=14900.00, category=self.category,
+            frequency="monthly", start_date=datetime.date(2026, 6, 1),
+            next_billing_date=datetime.date(2026, 6, 1), is_active=True, auto_pay=False
+        )
+        finance_service.subscription_skip(self.user, sub.id)
+        sub.refresh_from_db()
+        self.assertEqual(sub.next_billing_date, datetime.date(2026, 7, 1))
+        self.assertEqual(sub.last_processed_date, datetime.date(2026, 6, 1))
+
+
