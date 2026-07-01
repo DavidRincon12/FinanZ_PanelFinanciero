@@ -1,16 +1,10 @@
-# Progress Ledger - Personalización, Concientización Financiera y Rediseño de Presupuestos
-Baseline Commit: f5b8c78dc782483169d7ace1e0ce376842037ffd
+# Progress Ledger - Gestor de Suscripciones y Pagos Recurrentes
+Baseline Commit: d048713c18aba671a15fbf9f808851f8ee46b136
 
-- [x] Task 1: Depuración Técnica de la Consola
-- [x] Task 2: Backend User Model & APIs updates
-- [x] Task 3: SurveyModal Component & Dashboard Integration
-- [x] Task 4: Dynamic Recommendations & Budget 50/30/20 Suggested Banner
-- [x] Task 5: Overspending Comparison & Historical Alert Logs
-- [x] Task 6: Premium Budgets Grid Redesign & period filters
-
-Task 1: complete (commits 6403ad3..09118a3, review clean)
-Task 2: complete (commits 09118a3..149cc30, verified with django tests)
-Task 3: complete (commits 149cc30..9a76b94, review clean)
-Task 4: complete (commits 6f33ae4..35de33d, review clean)
-Task 5: complete (commits 35de33d..118e1a0, review clean)
-Task 6: complete (commits 118e1a0..0c36698, review clean)
+- [x] Task 1: Backend Database Model (`Subscription`)
+- [ ] Task 2: Service Layer & Business Logic (`finance_service.py`)
+- [ ] Task 3: REST API Views and Serializers
+- [ ] Task 4: Cron Processor Engine & Lazy-Checking Fallback
+- [ ] Task 5: Frontend API client methods
+- [ ] Task 6: Frontend Routing & Sidebar Navigation
+- [ ] Task 7: Subscriptions Page Component (`Subscriptions.tsx`)
