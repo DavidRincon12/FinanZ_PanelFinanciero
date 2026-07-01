@@ -12,7 +12,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction as db_transaction
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -338,7 +337,9 @@ def subscription_create(user: "CustomUser", data: dict) -> Subscription:
 def subscription_confirm(user: "CustomUser", subscription_id: int) -> Transaction:
     """Confirma un pago pendiente, registra una transacción y avanza el ciclo."""
     with db_transaction.atomic():
-        sub = get_object_or_404(Subscription, id=subscription_id, user=user)
+        sub = Subscription.objects.get(id=subscription_id, user=user)
+        if not sub.is_active:
+            raise ValueError("La suscripción está pausada/inactiva.")
         # Crear transacción de egreso
         tx = Transaction.objects.create(
             user=user,
@@ -358,7 +359,9 @@ def subscription_confirm(user: "CustomUser", subscription_id: int) -> Transactio
 
 def subscription_skip(user: "CustomUser", subscription_id: int) -> None:
     """Omite el cobro del periodo actual y avanza la fecha al siguiente vencimiento."""
-    sub = get_object_or_404(Subscription, id=subscription_id, user=user)
+    sub = Subscription.objects.get(id=subscription_id, user=user)
+    if not sub.is_active:
+        raise ValueError("La suscripción está pausada/inactiva.")
     sub.last_processed_date = sub.next_billing_date
     sub.next_billing_date = calculate_next_billing_date(sub.next_billing_date, sub.frequency)
     sub.save()

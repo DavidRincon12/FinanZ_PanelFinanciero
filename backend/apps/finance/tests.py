@@ -250,4 +250,25 @@ class SubscriptionServiceTest(TestCase):
         self.assertEqual(sub.next_billing_date, datetime.date(2026, 7, 1))
         self.assertEqual(sub.last_processed_date, datetime.date(2026, 6, 1))
 
+    def test_subscription_confirm_inactive_raises_value_error(self):
+        sub = Subscription.objects.create(
+            user=self.user, name="Spotify Inactive", amount=14900.00, category=self.category,
+            frequency="monthly", start_date=datetime.date(2026, 6, 1),
+            next_billing_date=datetime.date(2026, 6, 1), is_active=False, auto_pay=False
+        )
+        with self.assertRaises(ValueError) as ctx:
+            finance_service.subscription_confirm(self.user, sub.id)
+        self.assertEqual(str(ctx.exception), "La suscripción está pausada/inactiva.")
+
+    def test_subscription_skip_inactive_raises_value_error(self):
+        sub = Subscription.objects.create(
+            user=self.user, name="Spotify Inactive", amount=14900.00, category=self.category,
+            frequency="monthly", start_date=datetime.date(2026, 6, 1),
+            next_billing_date=datetime.date(2026, 6, 1), is_active=False, auto_pay=False
+        )
+        with self.assertRaises(ValueError) as ctx:
+            finance_service.subscription_skip(self.user, sub.id)
+        self.assertEqual(str(ctx.exception), "La suscripción está pausada/inactiva.")
+
+
 
