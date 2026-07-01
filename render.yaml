@@ -28,3 +28,38 @@ services:
         sync: false
       - key: PYTHON_VERSION
         value: "3.12.3"
+      - key: CRON_SECRET
+        value: "3h6p8TEkPzsJBRuyh9COM4LC9PbKdLwIOwVNzlwMfO0"
+
+  # ============================================================
+  # Cron Job: dispara el motor de suscripciones cada día a las 8 AM UTC
+  # Render ejecuta el comando en un contenedor efímero (no bloquea el web service)
+  # ============================================================
+  - type: cron
+    name: finanz-subscriptions-cron
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "./build.sh"
+    schedule: "0 8 * * *"   # Diariamente a las 08:00 UTC (3 AM Colombia)
+    startCommand: >
+      python -c "
+      import os, django
+      os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
+      django.setup()
+      from services.finance_service import process_all_due_subscriptions
+      results = process_all_due_subscriptions()
+      print('Cron OK:', results)
+      "
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: CRON_SECRET
+        value: "3h6p8TEkPzsJBRuyh9COM4LC9PbKdLwIOwVNzlwMfO0"
+      - key: PYTHON_VERSION
+        value: "3.12.3"
