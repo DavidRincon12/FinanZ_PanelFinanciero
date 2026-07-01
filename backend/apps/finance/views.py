@@ -4,14 +4,17 @@ Views – finance
 Vistas de transacciones usando la capa de servicios.
 Las vistas son delgadas: solo manejan HTTP y delegan al servicio.
 """
+import os
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
 from .serializers import TransactionSerializer, CategorySerializer
 
 from .models import Transaction, Category
@@ -308,4 +311,53 @@ def transaction_bulk_create_api(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
+from .models import Subscription
+from .serializers import SubscriptionSerializer
+
+class SubscriptionViewSet(ModelViewSet):
+    serializer_class = SubscriptionSerializer
+    queryset = Subscription.objects.all()
+
+    def get_queryset(self):
+        return Subscription.objects.filter(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        tx = finance_service.subscription_confirm(request.user, pk)
+        return Response({"status": "confirmed", "transaction_id": tx.id})
+
+    @action(detail=True, methods=['post'])
+    def skip(self, request, pk=None):
+        finance_service.subscription_skip(request.user, pk)
+        return Response({"status": "skipped"})
+
+
+class SubscriptionsProcessCronView(APIView):
+    """
+    Endpoint disparado por un cron job externo (cron-job.org o GitHub Actions).
+    Requiere cabecera: Authorization: Bearer <CRON_SECRET>
+
+    authentication_classes=[] evita que DRF intente parsear el header
+    Authorization como token de sesión (lo manejamos manualmente).
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Leer header directamente de META para compatibilidad con tests y producción
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        expected_token = os.environ.get("CRON_SECRET")
+
+        if not expected_token or auth_header != f"Bearer {expected_token}":
+            return Response(
+                {"error": "Token no válido o ausente."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        results = finance_service.process_all_due_subscriptions()
+        return Response({"status": "success", "results": results})
 

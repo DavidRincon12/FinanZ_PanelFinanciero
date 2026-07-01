@@ -69,7 +69,18 @@ def firebase_login(request):
         # Validar el login en el request de Django (crear la cookie de sesión)
         # specify backend as CustomUser has no explicit backend set by authenticate() here
         login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-        
+
+        # Fallback lazy: procesa suscripciones vencidas del usuario en hilo secundario.
+        # No bloquea la respuesta; errors are silenced so they can't break login.
+        import threading
+        def _lazy_process(u):
+            try:
+                from services import finance_service
+                finance_service.process_all_due_subscriptions(specific_user=u)
+            except Exception:
+                pass
+        threading.Thread(target=_lazy_process, args=(user,), daemon=True).start()
+
         return JsonResponse({"status": "success", "message": "Autenticado con Google exitosamente."})
         
     except ValueError as e:

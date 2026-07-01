@@ -271,4 +271,149 @@ class SubscriptionServiceTest(TestCase):
         self.assertEqual(str(ctx.exception), "La suscripción está pausada/inactiva.")
 
 
+from rest_framework.test import APITestCase
+from rest_framework import status
 
+class SubscriptionAPITest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="apiuser", email="api@test.com", password="password")
+        self.client.force_authenticate(user=self.user)
+        self.category = Category.objects.create(name="Streaming", icon="🎬")
+
+    def test_crud_endpoints(self):
+        # Create
+        data = {
+            "name": "Prime Video", "amount": "17900.00", "category_id": self.category.id,
+            "frequency": "monthly", "start_date": "2026-06-01", "auto_pay": True
+        }
+        response = self.client.post("/finance/api/subscriptions/", data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        sub_id = response.data["id"]
+
+        # List
+        response = self.client.get("/finance/api/subscriptions/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data) > 0)
+
+        # Skip
+        response = self.client.post(f"/finance/api/subscriptions/{sub_id}/skip/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Confirm
+        response = self.client.post(f"/finance/api/subscriptions/{sub_id}/confirm/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class SubscriptionCronProcessorTest(TestCase):
+    """
+    Unit tests for process_all_due_subscriptions (Task 4).
+    Verifies: auto-pay creates transaction, anti-double-billing guard,
+    manual-pay skips transaction, cron endpoint rejects bad tokens.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="cronuser",
+            email="cron@test.com",
+            password="pass",
+        )
+        self.today = datetime.date.today()
+
+    def _make_sub(self, *, auto_pay=True, days_overdue=0, last_processed=None):
+        from apps.finance.models import Subscription
+        billing_date = self.today - datetime.timedelta(days=days_overdue)
+        return Subscription.objects.create(
+            user=self.user,
+            name="Netflix",
+            amount="9.99",
+            frequency="monthly",
+            start_date=billing_date,
+            next_billing_date=billing_date,
+            auto_pay=auto_pay,
+            is_active=True,
+            alert_days_before=3,
+            last_processed_date=last_processed,
+        )
+
+    def test_auto_pay_creates_transaction(self):
+        """Auto-pay due subscription creates a Transaction and advances the billing date."""
+        sub = self._make_sub(auto_pay=True, days_overdue=1)
+        initial_next = sub.next_billing_date
+
+        from services.finance_service import process_all_due_subscriptions
+        results = process_all_due_subscriptions(specific_user=self.user)
+
+        self.assertEqual(results["processed_auto"], 1)
+        # Transaction must exist
+        tx = Transaction.objects.filter(user=self.user, description__contains="Netflix").last()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.transaction_type, Transaction.EXPENSE)
+        # Next billing date must have advanced
+        sub.refresh_from_db()
+        self.assertGreater(sub.next_billing_date, initial_next)
+
+    def test_anti_double_billing_guard(self):
+        """Running cron twice on the same day does not create duplicate transactions."""
+        sub = self._make_sub(auto_pay=True, days_overdue=1)
+        from services.finance_service import process_all_due_subscriptions
+
+        process_all_due_subscriptions(specific_user=self.user)
+        count_after_first = Transaction.objects.filter(user=self.user).count()
+
+        process_all_due_subscriptions(specific_user=self.user)
+        count_after_second = Transaction.objects.filter(user=self.user).count()
+
+        self.assertEqual(count_after_first, count_after_second)
+
+    def test_manual_pay_does_not_create_transaction(self):
+        """Manual-pay (auto_pay=False) subscription does not auto-create a Transaction."""
+        self._make_sub(auto_pay=False, days_overdue=1)
+        initial_tx_count = Transaction.objects.filter(user=self.user).count()
+
+        from services.finance_service import process_all_due_subscriptions
+        results = process_all_due_subscriptions(specific_user=self.user)
+
+        self.assertEqual(results["processed_auto"], 0)
+        self.assertEqual(
+            Transaction.objects.filter(user=self.user).count(), initial_tx_count
+        )
+
+    def test_future_subscription_not_processed(self):
+        """Subscriptions with future billing dates are not processed."""
+        from apps.finance.models import Subscription
+        future_date = self.today + datetime.timedelta(days=10)
+        Subscription.objects.create(
+            user=self.user,
+            name="Spotify Future",
+            amount="4.99",
+            frequency="monthly",
+            start_date=future_date,
+            next_billing_date=future_date,
+            auto_pay=True,
+            is_active=True,
+            alert_days_before=3,
+        )
+        from services.finance_service import process_all_due_subscriptions
+        results = process_all_due_subscriptions(specific_user=self.user)
+        self.assertEqual(results["processed_auto"], 0)
+
+    def test_cron_endpoint_rejected_without_token(self):
+        """Cron endpoint must return 403 when no CRON_SECRET header is provided."""
+        response = self.client.post("/finance/api/subscriptions/process-cron/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_cron_endpoint_accepted_with_valid_token(self):
+        """Cron endpoint must return 200 when correct Authorization header is provided."""
+        import os
+        os.environ["CRON_SECRET"] = "test-secret-token"
+        try:
+            response = self.client.post(
+                "/finance/api/subscriptions/process-cron/",
+                HTTP_AUTHORIZATION="Bearer test-secret-token",
+            )
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["status"], "success")
+        finally:
+            del os.environ["CRON_SECRET"]

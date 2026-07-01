@@ -1,7 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
 app_name = "finance"
+
+router = DefaultRouter()
+router.register(r'subscriptions', views.SubscriptionViewSet, basename='subscription')
 
 urlpatterns = [
     # Legacy / Template Views
@@ -25,5 +29,13 @@ urlpatterns = [
     path("api/expenses-by-category/", views.expenses_by_category_api, name="expenses_by_category_api"),
     path("api/total-balance/", views.total_balance_api, name="total_balance_api"),
     path("api/transactions/bulk/", views.transaction_bulk_create_api, name="transaction_bulk_create_api"),
+    
+    # Cron trigger endpoint — must be BEFORE router include so it's matched first.
+    # The router's subscriptions/<pk>/ pattern would otherwise capture 'process-cron' as a pk.
+    path("api/subscriptions/process-cron/", views.SubscriptionsProcessCronView.as_view(), name="subscriptions-process-cron"),
+
+    # Subscription API via ViewSet (router must come after explicit paths above)
+    path("api/", include(router.urls)),
 ]
+
 

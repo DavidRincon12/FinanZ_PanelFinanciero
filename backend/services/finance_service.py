@@ -368,3 +368,124 @@ def subscription_skip(user: "CustomUser", subscription_id: int) -> None:
     logger.info("Subscription skipped: id=%s", sub.pk)
 
 
+def process_all_due_subscriptions(specific_user=None) -> dict:
+    """
+    Motor principal del cron de suscripciones.
+
+    Procesa dos tipos de eventos:
+    1. Suscripciones vencidas (next_billing_date <= hoy):
+       - Auto-pay=True: crea Transaction de egreso y avanza la fecha.
+       - Auto-pay=False: solo envía correo de recordatorio (el usuario confirma manualmente).
+    2. Alertas anticipadas (next_billing_date - alert_days_before == hoy):
+       - Envía correo preventivo informando del próximo cobro.
+
+    Usa last_processed_date para evitar doble facturación si el cron
+    se ejecuta más de una vez en el mismo día.
+
+    Args:
+        specific_user: Si se provee, solo procesa suscripciones de ese usuario
+                       (usado para el fallback lazy al iniciar sesión).
+
+    Returns:
+        dict con claves 'processed_auto' y 'alerts_sent'.
+    """
+    from django.core.mail import send_mail
+    from django.conf import settings
+    from django.db.models import Q
+
+    today = timezone.now().date()
+    results = {"processed_auto": 0, "alerts_sent": 0}
+
+    # --- 1. Procesar cobros vencidos (next_billing_date <= today) ---
+    due_filter = Q(is_active=True, next_billing_date__lte=today)
+    if specific_user:
+        due_filter &= Q(user=specific_user)
+
+    for sub in Subscription.objects.filter(due_filter).select_related("user", "category"):
+        # Protección anti-doble-facturación
+        if sub.last_processed_date == sub.next_billing_date:
+            continue
+
+        if sub.auto_pay:
+            with db_transaction.atomic():
+                Transaction.objects.create(
+                    user=sub.user,
+                    amount=sub.amount,
+                    transaction_type=Transaction.EXPENSE,
+                    category=sub.category,
+                    description=f"Pago Automático: {sub.name}",
+                    date=sub.next_billing_date,
+                )
+                sub.last_processed_date = sub.next_billing_date
+                sub.next_billing_date = calculate_next_billing_date(
+                    sub.next_billing_date, sub.frequency
+                )
+                sub.save()
+            results["processed_auto"] += 1
+            logger.info(
+                "Auto-pay processed: subscription=%s user=%s amount=%s",
+                sub.pk, sub.user.pk, sub.amount,
+            )
+            try:
+                send_mail(
+                    subject=f"FinanZ: Pago registrado - {sub.name}",
+                    message=(
+                        f"Hola {sub.user.username},\n\n"
+                        f"Se registró automáticamente el pago de {sub.name} "
+                        f"por ${sub.amount}.\n\n"
+                        f"Tu saldo y presupuestos han sido actualizados en FinanZ."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[sub.user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+        else:
+            # Pago manual pendiente: notificar al usuario para que confirme
+            try:
+                send_mail(
+                    subject=f"FinanZ: Pago pendiente - {sub.name}",
+                    message=(
+                        f"Hola {sub.user.username},\n\n"
+                        f"Tu suscripción a {sub.name} por ${sub.amount} "
+                        f"está pendiente de confirmación.\n\n"
+                        f"Ingresa a FinanZ para confirmarla u omitirla."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[sub.user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+
+    # --- 2. Alertas anticipadas (next_billing_date - alert_days_before == today) ---
+    alert_filter = Q(is_active=True)
+    if specific_user:
+        alert_filter &= Q(user=specific_user)
+
+    for sub in Subscription.objects.filter(alert_filter).select_related("user"):
+        alert_date = sub.next_billing_date - datetime.timedelta(days=sub.alert_days_before)
+        if alert_date == today:
+            results["alerts_sent"] += 1
+            logger.info(
+                "Anticipatory alert sent: subscription=%s user=%s days_before=%s",
+                sub.pk, sub.user.pk, sub.alert_days_before,
+            )
+            try:
+                send_mail(
+                    subject=f"FinanZ: Próximo cobro en {sub.alert_days_before} días - {sub.name}",
+                    message=(
+                        f"Hola {sub.user.username},\n\n"
+                        f"En {sub.alert_days_before} días se renovará tu suscripción "
+                        f"a {sub.name} por ${sub.amount}.\n\n"
+                        f"Si deseas pausarla o cancelarla, ingresa a FinanZ."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[sub.user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+
+    return results
